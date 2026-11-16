@@ -94,3 +94,82 @@ def auroc_diff_ci(y: np.ndarray, s1: np.ndarray, s2: np.ndarray, idx: np.ndarray
         diffs.append(roc_auc_score(yb, s1[b]) - roc_auc_score(yb, s2[b]))
     return {"delta": auroc(y, s1) - auroc(y, s2),
             "ci95": [float(np.percentile(diffs, 2.5)), float(np.percentile(diffs, 97.5))]}
+
+
+# --------------------------------------------------------------------------- abstention
+def accuracy_coverage(incorrect: np.ndarray, score: np.ndarray) -> np.ndarray:
+    """Accuracy when the model answers only its k most-confident questions, k = 1..n.
+
+    Returns acc with acc[k-1] = accuracy at coverage k/n. Questions with tied scores
+    (common for semantic entropy, which takes few distinct values) are handled exactly:
+    we report the *expected* accuracy if ties were broken uniformly at random, so the
+    curve does not depend on arbitrary sort order.
+    """
+    correct = 1.0 - np.asarray(incorrect, float)
+    order = np.argsort(np.asarray(score, float), kind="stable")
+    s, c = np.asarray(score, float)[order], correct[order]
+    n = len(s)
+    _, starts = np.unique(s, return_index=True)
+    ends = np.append(starts[1:], n)
+    acc = np.empty(n)
+    kept_correct = 0.0
+    for st, en in zip(starts, ends):
+        j = np.arange(1, en - st + 1)
+        acc[st:en] = (kept_correct + j * c[st:en].mean()) / (st + j)
+        kept_correct += c[st:en].sum()
+    return acc
+
+
+ABSTENTION_METHODS = ["probe_answer", "probe_prompt", "neg_mean_logprob", "neg_min_logprob",
+                      "self_consistency", "semantic_entropy", "answer_identity"]
+
+
+def subset_scores(name: str, cfg: dict) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """(incorrect, {method: score}) on the 500-question subset where all methods exist.
+    Probe scores are the out-of-fold (cross-fitted) scores from src/probe.py."""
+    from .utils import read_jsonl, results_dir
+
+    rd = results_dir(cfg) / name
+    base = {r["id"]: r for r in read_jsonl(rd / "baseline_scores.jsonl")}
+    probe = {r["id"]: r for r in read_jsonl(rd / "probe_scores.jsonl")}
+    ids = [i for i, r in base.items() if r["in_sample_subset"]]
+    y = np.array([base[i]["incorrect"] for i in ids])
+    scores = {}
+    for m in ABSTENTION_METHODS:
+        src = probe if m.startswith("probe_") else base
+        if m in src[ids[0]]:
+            scores[m] = np.array([src[i][m] for i in ids], float)
+    return y, scores
+
+
+def abstention_metrics(name: str, cfg: dict) -> dict:
+    y, scores = subset_scores(name, cfg)
+    n = len(y)
+    out = {"n": n, "accuracy_full_coverage": float(1 - y.mean()), "methods": {}}
+    for m, s in {**scores, "oracle": y.astype(float)}.items():
+        acc = accuracy_coverage(y, s)
+        out["methods"][m] = {
+            "aurac": float(acc.mean()),  # area under the accuracy-coverage curve
+            "accuracy_at_coverage": {f"{c:.1f}": float(acc[int(round(c * n)) - 1])
+                                     for c in (0.2, 0.5, 0.8)},
+        }
+    return out
+
+
+def main():
+    """Phase 5 numbers: abstention (accuracy vs coverage) for every method."""
+    from .utils import load_config, update_metrics
+
+    cfg = load_config()
+    for name in ("trivia_qa", "pubmed_qa"):
+        res = abstention_metrics(name, cfg)
+        update_metrics(cfg, ["abstention", name], res)
+        print(f"[{name}] n={res['n']}  accuracy at full coverage {res['accuracy_full_coverage']:.3f}")
+        for m, v in res["methods"].items():
+            a = v["accuracy_at_coverage"]
+            print(f"  {m:18s} AURAC {v['aurac']:.3f} | acc@80% {a['0.8']:.3f}  "
+                  f"acc@50% {a['0.5']:.3f}  acc@20% {a['0.2']:.3f}")
+
+
+if __name__ == "__main__":
+    main()

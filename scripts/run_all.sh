@@ -20,3 +20,7 @@ $PY -m src.timing
 
 # Phase 4: probes (layer sweep, prompt-only, transfer, shuffled control, cross-fitted comparison)
 $PY -m src.probe | tee results/phase4_log.txt
+
+# Phase 5: abstention metrics and figures
+$PY -m src.evaluate
+$PY -m src.plots

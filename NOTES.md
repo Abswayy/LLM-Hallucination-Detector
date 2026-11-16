@@ -487,3 +487,66 @@ Re-standardizing features with the (unlabeled) target data did not help (0.738, 
 5. **Not too good to be true.** The highest AUROC is 0.909, below the 0.95 investigate
    threshold; the shuffled-label controls are at 0.5; layer/C selection never touched
    test data.
+
+---
+
+## Phase 5 — Analysis and figures
+
+### What the code does (`src/evaluate.py`, `src/plots.py`)
+
+**Abstention ("selective answering").** Suppose the model may decline to answer. We
+rank the 500 sampled questions from most to least confident by each method's score,
+let the model answer only the top fraction ("coverage"), and measure accuracy on the
+questions it does answer. A good uncertainty score makes accuracy rise quickly as
+coverage drops. We summarize each curve by its area (**AURAC**, area under the
+accuracy-coverage curve; higher is better). Ties are handled exactly: for discrete
+scores like semantic entropy we report the *expected* accuracy if tied questions were
+dropped in random order. That was checked against a 20,000-run simulation (max
+difference 0.001).
+
+From `results/metrics.json` → `abstention` (500-question subset; probe scores are
+out-of-fold):
+
+| | TriviaQA AURAC | acc @ 50% coverage | PubMedQA AURAC | acc @ 50% coverage |
+|---|---|---|---|---|
+| Answer everything | 0.438 | 0.438 | 0.622 | 0.622 |
+| **Answer-token probe** | **0.722** | **0.728** | **0.839** | **0.888** |
+| Prompt-only probe | 0.691 | 0.676 | 0.838 | 0.868 |
+| Token log-prob (mean) | 0.700 | 0.680 | 0.782 | 0.772 |
+| Self-consistency | 0.670 | 0.682 | 0.719 | 0.743 |
+| Semantic entropy | 0.658 | 0.699 | 0.720 | 0.743 |
+| Answer identity (control) | — | — | 0.787 | 0.773 |
+| Oracle (perfect ranking) | 0.799 | 0.876 | 0.917 | 1.000 |
+
+Reading it: if the system answers only the half of TriviaQA questions the answer-token
+probe is most confident about, accuracy rises from 43.8% to 72.8%. On PubMedQA it rises
+from 62.2% to 88.8%.
+
+Semantic entropy's curve goes flat at low coverage. With 6 answers its score takes only
+a few distinct values, and many questions tie at 0 (all six answers agree): 64% of
+PubMedQA questions and 37% of TriviaQA questions. Once only those questions remain, it
+has no way to rank them further. This is a real practical limitation of sampling-based
+scores with few samples, not a plotting artifact.
+
+### Figures (`figures/`, PDF + PNG)
+
+| File | What it shows |
+|---|---|
+| `fig1_auroc_comparison` | AUROC with 95% CI for every method on the same 500 questions, both datasets |
+| `fig2_abstention` | Accuracy vs coverage (abstain on the most uncertain first) |
+| `fig3_cost_vs_auroc` | Forward passes per question (LLM + NLI, log scale) vs AUROC |
+| `fig4_layer_sweep` | Probe test AUROC per layer, both token positions; ring = layer chosen on val |
+| `fig5_transfer` | Train-domain x test-domain AUROC heatmaps for both probes |
+
+Design choices:
+- Each method keeps the same color and marker in every figure.
+- The four method colors were checked with a colorblind-safety validator for the
+  all-pairs case (scatter plots), and every series also has a distinct marker and a
+  text label, so nothing depends on color alone.
+- Self-consistency and the answer-identity control are neutral grays.
+- Self-consistency is left out of the abstention plot because it is nearly identical
+  to semantic entropy; its numbers are in the table above.
+- Figure 3 counts NLI forward passes together with LLM passes for semantic entropy.
+  The NLI model (DeBERTa-large, 0.4B parameters) is much smaller than the LLM, so this
+  slightly *overstates* semantic entropy's cost in passes. Wall-clock costs (Checkpoint
+  4, table C) are the more faithful comparison.
