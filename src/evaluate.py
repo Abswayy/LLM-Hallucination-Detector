@@ -80,3 +80,17 @@ def method_costs(costs: dict) -> dict:
             "seconds_overhead": total if m == "probe_prompt" else total - sec["greedy"],
         }
     return out
+
+
+def auroc_diff_ci(y: np.ndarray, s1: np.ndarray, s2: np.ndarray, idx: np.ndarray) -> dict:
+    """AUROC(s1) - AUROC(s2) with a paired 95% bootstrap CI (same resamples for both).
+    If the CI excludes 0, the difference is unlikely to be resampling noise."""
+    y, s1, s2 = np.asarray(y), np.asarray(s1, float), np.asarray(s2, float)
+    diffs = []
+    for b in idx:
+        yb = y[b]
+        if yb.min() == yb.max():
+            continue
+        diffs.append(roc_auc_score(yb, s1[b]) - roc_auc_score(yb, s2[b]))
+    return {"delta": auroc(y, s1) - auroc(y, s2),
+            "ci95": [float(np.percentile(diffs, 2.5)), float(np.percentile(diffs, 97.5))]}

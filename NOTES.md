@@ -316,3 +316,174 @@ On the full 1,000 questions: −mean log-prob 0.707 [0.675, 0.739], answer ident
 - `src/timing.py` frees cached GPU memory between stages; without that, the largest
   PubMedQA sampling batch ran out of memory because of fragmentation (it fits on its
   own, as in Phase 1).
+
+---
+
+## Checkpoint 4 — Probes (the main contribution)
+
+### What a linear probe is
+
+A **probe** is a deliberately simple classifier that reads the model's internal state
+and tries to predict something. Here, "will this answer be wrong?". We use **logistic
+regression**: it learns one weight per hidden-state dimension (2,048 weights), adds up
+weight x value, and squashes the sum into a probability. Because it is *linear*, it can
+only succeed if the information is already laid out plainly in the hidden state; it
+cannot do complex computation of its own. That makes a working probe evidence that the
+model itself represents its likelihood of being wrong. It is also extremely cheap to
+run: one dot product, about 4–7 microseconds per question here.
+
+Details (`src/probe.py`):
+- **Split by question.** 70% train / 15% val / 15% test, seeded. The code asserts no
+  question, by id or by normalized text, is in two splits.
+- **Standardization.** Each of the 2,048 features is rescaled using the *train* mean and
+  standard deviation only.
+- **Regularization strength C.** Chosen on val from 8 values (1e-4 … 1). The chosen
+  values are small (3e-4 to 3e-3): with 2,048 features and only 700–1,400 training
+  questions, strong regularization prevents memorization.
+- **Layer selection.** One probe per saved layer (4, 8, …, 36) and per token position.
+  The **best layer is picked on val**, then reported once on test.
+- **Cross-fitting for the comparison.** To compare with semantic entropy on all 500
+  sampled questions, 5-fold cross-fitting gives every question a score from a probe that
+  never saw it. Layer and C are again chosen on an inner validation split inside each
+  fold.
+
+### Why the shuffled-label control matters
+
+If you shuffle the labels, there is no real relationship left between hidden states and
+"wrong", so an honest pipeline must score ~0.5 on the (unshuffled) test labels. If it
+scores higher, information is leaking: for example the same question appears in train
+and test, or test data influenced a choice. It is a check of the *pipeline*, not of the
+model.
+
+**What happened.** With the first 5 shuffles, the PubMedQA answer-token control averaged
+0.415 (one run 0.293). That is below chance, which is equally suspicious. We tested two
+explanations:
+- 200 shuffles: the mean was ~0.50 in every case.
+- 200 random untrained directions: same wide spread.
+
+A shuffled probe learns an essentially random direction, and when the real signal is
+strong, a random direction can align with it or against it by chance. With only 150
+test questions that produces a wide spread around 0.5. Five draws were simply too few, so
+the control now uses 200 shuffles:
+
+| Shuffled-label control (200 shuffles) | mean | sd | 5–95% |
+|---|---|---|---|
+| TriviaQA, prompt token (L28) | 0.499 | 0.053 | 0.413–0.591 |
+| TriviaQA, answer token (L24) | 0.505 | 0.070 | 0.387–0.646 |
+| PubMedQA, prompt token (L36) | 0.500 | 0.080 | 0.365–0.640 |
+| PubMedQA, answer token (L32) | 0.497 | 0.091 | 0.344–0.651 |
+
+All four are centred on 0.5: **no evidence of leakage.**
+
+### Results (from `results/metrics.json`: `probes`, `transfer`, `comparison`, `costs`)
+
+**A. Fixed split, best layer chosen on val, reported on test**
+(TriviaQA test n=300, 172 incorrect; PubMedQA test n=150, 55 incorrect)
+
+| | TriviaQA | PubMedQA |
+|---|---|---|
+| Answer-token probe | **0.909** [0.875, 0.938] (L24) | **0.828** [0.747, 0.898] (L32) |
+| Prompt-only probe | **0.837** [0.794, 0.882] (L28) | **0.827** [0.751, 0.896] (L36) |
+| −mean token log-prob (same test split) | 0.845 [0.801, 0.887] | 0.760 [0.677, 0.839] |
+| Answer identity (same test split) | — | 0.776 [0.697, 0.848] |
+
+Layer sweep (test AUROC; the full sweep with val AUROC is in `metrics.json`):
+
+| Layer | 4 | 8 | 12 | 16 | 20 | 24 | 28 | 32 | 36 |
+|---|---|---|---|---|---|---|---|---|---|
+| TriviaQA prompt | .686 | .685 | .729 | .722 | .783 | .795 | **.837** | .810 | .799 |
+| TriviaQA answer | .626 | .634 | .732 | .829 | .890 | **.909** | .902 | .875 | .867 |
+| PubMedQA prompt | .507 | .564 | .484 | .529 | .555 | .583 | .803 | .819 | **.827** |
+| PubMedQA answer | .786 | .776 | .778 | .790 | .802 | .826 | .832 | **.828** | .835 |
+
+(Bold = layer chosen on val. Information about correctness appears in the middle-to-late
+layers; on PubMedQA the prompt-token signal appears abruptly at layer 28.)
+
+**B. Probe vs every baseline on the same 500-question subset** (out-of-fold probe
+scores; ΔAUROC = probe − baseline with paired-bootstrap 95% CI. If the CI excludes 0,
+the difference is not resampling noise.)
+
+TriviaQA:
+
+| Method | AUROC [95% CI] | Δ answer probe − method | Δ prompt probe − method |
+|---|---|---|---|
+| **Answer-token probe** | **0.881** [0.852, 0.908] | | |
+| Prompt-only probe | 0.821 [0.781, 0.858] | | |
+| −mean token log-prob | 0.837 [0.802, 0.870] | +0.044 [+0.011, +0.081] | −0.016 [−0.053, +0.025] |
+| −min token log-prob | 0.833 [0.797, 0.868] | +0.048 [+0.015, +0.082] | −0.012 [−0.048, +0.026] |
+| Self-consistency | 0.823 [0.787, 0.858] | +0.058 [+0.023, +0.098] | −0.002 [−0.046, +0.041] |
+| Semantic entropy | 0.817 [0.782, 0.854] | +0.064 [+0.029, +0.102] | +0.004 [−0.036, +0.045] |
+
+PubMedQA:
+
+| Method | AUROC [95% CI] | Δ answer probe − method | Δ prompt probe − method |
+|---|---|---|---|
+| **Answer-token probe** | **0.839** [0.800, 0.873] | | |
+| Prompt-only probe | 0.830 [0.791, 0.864] | | |
+| −mean token log-prob | 0.731 [0.685, 0.775] | +0.108 [+0.059, +0.156] | +0.099 [+0.056, +0.145] |
+| Answer identity (control) | 0.753 [0.708, 0.794] | +0.085 [+0.053, +0.117] | +0.077 [+0.037, +0.116] |
+| Self-consistency | 0.669 [0.624, 0.712] | +0.170 [+0.119, +0.218] | +0.162 [+0.113, +0.206] |
+| Semantic entropy | 0.671 [0.624, 0.715] | +0.168 [+0.118, +0.216] | +0.159 [+0.110, +0.205] |
+
+On all questions (out-of-fold): TriviaQA answer probe 0.894 [0.881, 0.907], prompt probe
+0.826 [0.807, 0.843], −mean log-prob 0.843 [0.825, 0.860]. PubMedQA answer probe 0.824
+[0.796, 0.851], prompt probe 0.822 [0.795, 0.849], −mean log-prob 0.707 [0.675, 0.739],
+answer identity 0.744 [0.714, 0.775].
+
+**C. Cost per question** (`costs.<dataset>.methods`; idle RTX 4080 Laptop GPU)
+
+| Method | LLM generations | LLM forward passes (Trivia / PubMed) | Total ms (Trivia / PubMed) | Extra ms over the greedy answer (Trivia / PubMed) |
+|---|---|---|---|---|
+| Prompt-only probe | 0 (prefill only) | 1 / 1 | 6.8 / 57.6 | (runs *before* answering) |
+| Answer-token probe | 1 | 3.91 / 2.00 | 24.9 / 65.3 | 0.8 / 1.8 |
+| Token log-prob | 1 | 3.91 / 2.00 | 24.1 / 63.4 | 0 |
+| Self-consistency | 6 | 23.55 / 12.00 | 111.8 / 374.9 | 87.6 / 311.5 |
+| Semantic entropy | 6 (+ NLI) | 23.55 / 12.00 (+9.03 / 0.85 NLI) | 193.3 / 390.7 | 169.2 / 327.3 |
+
+**D. Cross-domain transfer** (target's test split; layer and C chosen on the *source's* val)
+
+| Train → test | Prompt-only probe | Answer-token probe |
+|---|---|---|
+| TriviaQA → TriviaQA (in-domain) | 0.837 [0.794, 0.882] | 0.909 [0.875, 0.938] |
+| PubMedQA → PubMedQA (in-domain) | 0.827 [0.751, 0.896] | 0.828 [0.747, 0.898] |
+| **TriviaQA → PubMedQA** | **0.741** [0.653, 0.823] | 0.540 [0.448, 0.637] |
+| **PubMedQA → TriviaQA** | 0.496 [0.429, 0.561] | 0.577 [0.515, 0.641] |
+
+Re-standardizing features with the (unlabeled) target data did not help (0.738, 0.508,
+0.506, 0.578 respectively).
+
+### What to take from this (honestly)
+
+1. **The answer-token probe is the best detector on both datasets, at essentially the
+   cost of token probability.** On TriviaQA it beats every baseline, including semantic
+   entropy, by +0.04 to +0.06 AUROC (CIs exclude 0). On PubMedQA it beats all of them by
+   +0.09 to +0.17. It adds ~1–2 ms to a 25–65 ms answer, versus +88–327 ms for the
+   sampling methods.
+2. **Hallucinations are largely predictable before the model answers.** From the prompt
+   alone, with one forward pass and no decoding, the probe matches token probability,
+   self-consistency and semantic entropy on TriviaQA (all Δ CIs include 0). It does that
+   at ~1/28 of semantic entropy's wall-clock (6.8 vs 193 ms), and it beats them all on
+   PubMedQA.
+   - *Important nuance:* the last prompt token's final-layer state is exactly what
+     produces the first answer token. On PubMedQA the whole answer is that one token, so
+     "before answering" there means "before the answer is *emitted*", not "before it is
+     *decided*".
+   - The prompt probe saves little time on PubMedQA (57.6 vs 63.4 ms), because the long
+     abstract dominates.
+3. **The PubMedQA probes are not just reading the answer word.** They beat the
+   answer-identity control by +0.08 (CI excludes 0). Within the model's "no" answers
+   (n=478) they still separate right from wrong (prompt probe 0.789 [0.749, 0.829],
+   answer probe 0.750 [0.706, 0.794], token log-prob 0.688 [0.637, 0.735]).
+   - Within "yes" (n=334) the answer probe is at chance: 0.463 [0.366, 0.563], below
+     token log-prob's 0.653.
+   - Within "maybe" (n=188) every method is near chance.
+   - So the PubMedQA advantage comes mostly from recognizing wrong "no" answers.
+4. **Transfer is weak and asymmetric: a mostly negative result.**
+   - A *prompt* probe trained on TriviaQA keeps some signal on PubMedQA (0.741, below
+     in-domain 0.827 and close to PubMedQA's own token log-prob 0.760).
+   - Answer-token probes do not transfer (0.540 and 0.577), and the PubMedQA prompt
+     probe does not transfer to TriviaQA at all (0.496).
+   - The "correctness direction" learned by these probes is largely domain-specific.
+5. **Not too good to be true.** The highest AUROC is 0.909, below the 0.95 investigate
+   threshold; the shuffled-label controls are at 0.5; layer/C selection never touched
+   test data.

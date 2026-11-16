@@ -44,3 +44,8 @@ paths:
 
 timing:
   repeats: 3               # median over repeats for the cost comparison
+
+probe:
+  C_grid: [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 1.0]  # inverse L2 strength; tuned on val
+  n_shuffles: 200           # shuffled-label control repeats (5 was too few: see NOTES, Checkpoint 4)
+  crossfit_folds: 5         # out-of-fold scores for the probe-vs-baselines comparison
