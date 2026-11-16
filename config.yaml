@@ -1,0 +1,43 @@
+# Single source of truth for every setting in the project.
+seed: 42
+
+model:
+  name: Qwen/Qwen2.5-3B-Instruct
+  dtype: bfloat16
+  # Hard cap on PyTorch's GPU memory. On Windows (WDDM) the driver silently spills
+  # to system RAM instead of raising OOM, which makes generation crawl. Capping the
+  # allocator turns that into a real OOM, which our adaptive batching catches.
+  max_vram_gb: 10.5
+
+generation:
+  max_new_tokens: 32
+  batch_size: 16            # starting batch size; halved automatically on OOM
+  min_batch_size: 1
+  chunk_size: 128           # examples per on-disk cache shard (resume granularity)
+  layer_stride: 4           # save every 4th layer (+ the final layer)
+
+sampling:
+  subset_size: 500          # questions per dataset that get sampled answers
+  n_samples: 5
+  temperature: 1.0
+  top_p: 0.95
+  batch_size: 8             # prompts per batch (x n_samples sequences)
+
+datasets:
+  trivia_qa:
+    hf_path: mandarjoshi/trivia_qa   # hub home of the canonical `trivia_qa` dataset
+    hf_config: rc.nocontext
+    split: validation
+    n_questions: 2000
+  pubmed_qa:
+    hf_path: qiaojin/PubMedQA        # hub home of the canonical `pubmed_qa` dataset
+    hf_config: pqa_labeled
+    split: train                     # pqa_labeled ships as a single 1,000-row split
+    n_questions: null                # null = use all
+    max_context_tokens: 768          # longer abstracts keep head + tail
+
+smoke_test_n: 20
+
+paths:
+  results: results
+  figures: figures

@@ -1,0 +1,55 @@
+{
+  "dataset": "trivia_qa",
+  "model": "Qwen/Qwen2.5-3B-Instruct",
+  "n_questions": 2000,
+  "n_sampled_questions": 500,
+  "layers_saved": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    28,
+    32,
+    36
+  ],
+  "hidden_dim": 2048,
+  "max_abs_activation_saved": 162.0,
+  "n_context_truncated": 0,
+  "n_hit_max_new_tokens": 0,
+  "n_empty_answers": 0,
+  "mean_prompt_tokens": 60.2565,
+  "greedy": {
+    "seconds": 75.61064989987062,
+    "peak_alloc_gb": 6.2444963455200195,
+    "peak_reserved_gb": 6.61328125,
+    "final_batch_size": 16,
+    "mean_forward_passes": 4.058
+  },
+  "sampling": {
+    "seconds": 44.09986449999269,
+    "peak_alloc_gb": 6.430695533752441,
+    "peak_reserved_gb": 6.931640625,
+    "final_batch_size": 8,
+    "mean_forward_passes": 19.64
+  },
+  "settings": {
+    "generation": {
+      "max_new_tokens": 32,
+      "batch_size": 16,
+      "min_batch_size": 1,
+      "chunk_size": 128,
+      "layer_stride": 4
+    },
+    "sampling": {
+      "subset_size": 500,
+      "n_samples": 5,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "batch_size": 8
+    },
+    "seed": 42
+  },
+  "torch": "2.14.1+cu126"
+}
