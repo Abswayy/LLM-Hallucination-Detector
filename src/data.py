@@ -26,11 +26,17 @@ TRIVIA_TEMPLATE = (
     "Question: {question}"
 )
 
+# Prompt v3 ("instruction last"). The original v1 prompt made the model hedge with "maybe"
+# on 698/1,000 questions versus 110/1,000 gold "maybe" labels (see NOTES.md, Checkpoint 1).
+# v3 was chosen by scripts/pubmed_prompt_pilot.py, which compares candidate wordings on
+# the first 100 questions using ONLY the yes/no/maybe answer distribution, before any
+# correctness labels were computed.
 PUBMED_TEMPLATE = (
-    "Read the abstract below and answer the research question with exactly one word: "
-    "yes, no, or maybe. Reply with that single word only.\n\n"
     "Abstract:\n{context}\n\n"
-    "Question: {question}"
+    "Question: {question}\n\n"
+    "Based on the findings in the abstract, answer the question with exactly one word. "
+    "Answer \"yes\" or \"no\" if the findings support a conclusion. Answer \"maybe\" "
+    "only if the evidence is genuinely mixed or inconclusive."
 )
 
 

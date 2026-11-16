@@ -15,22 +15,22 @@
     36
   ],
   "hidden_dim": 2048,
-  "max_abs_activation_saved": 119.0,
+  "max_abs_activation_saved": 120.0,
   "n_context_truncated": 0,
   "n_hit_max_new_tokens": 0,
   "n_empty_answers": 0,
-  "mean_prompt_tokens": 394.155,
+  "mean_prompt_tokens": 412.155,
   "greedy": {
-    "seconds": 121.34544899995672,
-    "peak_alloc_gb": 7.277856826782227,
-    "peak_reserved_gb": 7.7109375,
+    "seconds": 113.40954870003043,
+    "peak_alloc_gb": 7.30881929397583,
+    "peak_reserved_gb": 7.72265625,
     "final_batch_size": 16,
     "mean_forward_passes": 2.0
   },
   "sampling": {
-    "seconds": 155.70543560007354,
-    "peak_alloc_gb": 9.395967960357666,
-    "peak_reserved_gb": 10.435546875,
+    "seconds": 152.95974569994723,
+    "peak_alloc_gb": 9.477692127227783,
+    "peak_reserved_gb": 10.36328125,
     "final_batch_size": 8,
     "mean_forward_passes": 10.0
   },

@@ -1,0 +1,28 @@
+{
+  "n_pilot": 100,
+  "gold_distribution": {
+    "yes": 58,
+    "no": 26,
+    "maybe": 16
+  },
+  "v1_original": {
+    "yes": 24,
+    "maybe": 71,
+    "no": 5
+  },
+  "v2_when_maybe": {
+    "yes": 22,
+    "maybe": 72,
+    "no": 6
+  },
+  "v3_instruction_last": {
+    "yes": 41,
+    "no": 40,
+    "maybe": 19
+  },
+  "v4_yes_no_first": {
+    "yes": 31,
+    "no": 68,
+    "maybe": 1
+  }
+}

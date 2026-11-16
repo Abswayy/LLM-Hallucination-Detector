@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import argparse
 import gc
+import hashlib
+import json
 import time
 from pathlib import Path
 
@@ -246,6 +248,18 @@ def run_stage(stage, items, model, tok, eos_ids, capture, cfg, out_dir: Path) ->
     chunk_dir.mkdir(parents=True, exist_ok=True)
     cs = cfg["generation"]["chunk_size"]
     gcfg = cfg["generation"]
+
+    # Guard against silently reusing stale caches: fingerprint the exact prompts + settings.
+    fp = hashlib.sha256(json.dumps(
+        [[it["id"], it["prompt"]] for it in items]
+        + [cfg["model"]["name"], gcfg["max_new_tokens"], gcfg["layer_stride"], cfg["sampling"],
+           cfg["seed"], cs],
+        sort_keys=True).encode()).hexdigest()
+    fp_path = chunk_dir / "fingerprint.txt"
+    if fp_path.exists() and fp_path.read_text().strip() != fp:
+        raise RuntimeError(f"{chunk_dir} was produced with different prompts/settings; "
+                           "delete it to regenerate.")
+    fp_path.write_text(fp)
     state = {"bs": gcfg["batch_size"] if stage == "greedy" else cfg["sampling"]["batch_size"]}
     fn = {
         "greedy": lambda b: greedy_batch(b, model, tok, eos_ids, capture, cfg),

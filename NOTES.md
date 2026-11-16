@@ -86,19 +86,19 @@ input. That is why it is the natural place to read out a summary of what the mod
 
 ### Run facts
 
-From `results/<dataset>/generation_meta.json` (RTX 4080 Laptop GPU, 12 GB; bf16; batch 16
+From `results/<dataset>/generation_meta.json` (PubMedQA column: final prompt v3; RTX 4080 Laptop GPU, 12 GB; bf16; batch 16
 greedy / 8 prompts x 5 samples; no OOM retries were needed):
 
 | | TriviaQA | PubMedQA |
 |---|---|---|
 | Questions (greedy + hidden states) | 2,000 | 1,000 |
 | Questions with 5 samples | 500 | 500 |
-| Mean prompt length (tokens) | 60.3 | 394.2 |
-| Greedy time (incl. hidden-state pass) | 75.6 s | 121.3 s |
-| Sampling time | 44.1 s | 155.7 s |
+| Mean prompt length (tokens) | 60.3 | 412.2 |
+| Greedy time (incl. hidden-state pass) | 75.6 s | 113.4 s |
+| Sampling time | 44.1 s | 153.0 s |
 | Mean greedy decode steps / question | 4.06 | 2.00 |
 | Mean sampling decode steps / question (5 samples) | 19.64 | 10.00 |
-| Peak VRAM allocated (reserved) | 6.43 GB (6.93) | 9.40 GB (10.44) |
+| Peak VRAM allocated (reserved) | 6.43 GB (6.93) | 9.48 GB (10.36) |
 | Answers hitting the 32-token limit / empty | 0 / 0 | 0 / 0 |
 | Abstracts truncated | n/a | 0 |
 | `hidden.pt` size | 141 MB | 71 MB |
@@ -107,12 +107,39 @@ These timings were measured with the GPU otherwise idle. A first smoke test that
 while another process was using the GPU was 10–18x slower, so timings are only
 comparable when measured on an idle GPU.
 
-### Observation to resolve before Phase 2: PubMedQA "maybe" bias
+### PubMedQA prompt change ("maybe" bias)
 
-The model answered **"maybe" on 698/1,000** PubMedQA questions, but only **110/1,000** gold
-labels are "maybe" (gold: 552 yes / 338 no / 110 maybe). Two consequences:
-1. Accuracy on PubMedQA will be low, mostly because of hedging rather than wrong facts.
-2. **Confound for the answer-token probe:** "incorrect" will largely mean "the model said
-   maybe", and the last generated token *is* the word "maybe". A probe could score well
-   just by reading which word was generated, without detecting anything like
-   hallucination. The prompt-only probe does not have this problem.
+**Problem.** With the first prompt (v1), the model answered **"maybe" on 698/1,000**
+PubMedQA questions, but only **110/1,000** gold labels are "maybe" (gold: 552 yes /
+338 no / 110 maybe). That causes two problems: accuracy would mostly measure hedging,
+and a probe on the last answer token could score well just by spotting the word "maybe".
+
+**What we did.** `scripts/pubmed_prompt_pilot.py` compared four wordings on the first
+100 questions, judging **only the yes/no/maybe distribution** (no correctness labels had
+been computed yet, so the prompt was not picked for accuracy or AUROC). Results are in
+`results/pubmed_prompt_pilot.json`:
+
+| Prompt (first 100 questions) | yes | no | maybe |
+|---|---|---|---|
+| v1 original | 24 | 5 | 71 |
+| v2 "maybe only if inconclusive" | 22 | 6 | 72 |
+| **v3 same instruction, placed after the abstract (chosen)** | 41 | 40 | 19 |
+| v4 yes/no framing, maybe as escape hatch | 31 | 68 | 1 |
+| gold | 58 | 26 | 16 |
+
+Telling the model *when* to say "maybe" did nothing while the instruction came before
+the long abstract; moving it after the abstract fixed most of the bias. Small models pay
+more attention to recent text. v4 overcorrected into "no".
+
+**Full run with v3:** 478 no / 334 yes / 188 maybe (case-folded; from
+`results/pubmed_qa/greedy.jsonl`). "Maybe" is much closer to the gold rate, but the model
+now over-predicts "no". So "incorrect" is still partly predictable from *which word*
+was said. Phases 3–4 therefore add an **answer-identity control**: how well can we
+predict errors from the yes/no/maybe word alone? The hidden-state probe has to beat that
+to show it detects more than the answer's identity.
+
+The v1 outputs are kept in `results/archive/pubmed_qa_prompt_v1/` for the record.
+
+**Methodological caveat.** The pilot questions are also part of the evaluation set.
+Because selection used only the answer distribution, not correctness, we consider the
+leakage negligible, but it is mentioned in the paper's limitations.
