@@ -1,0 +1,8 @@
+{
+  "seconds": 328.2664275999996,
+  "peak_alloc_gb": 9.33633279800415,
+  "peak_reserved_gb": 10.251953125,
+  "final_batch_size": 4,
+  "n_questions": 500,
+  "mean_forward_passes": 10.0
+}

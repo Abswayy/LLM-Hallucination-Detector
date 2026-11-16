@@ -29,6 +29,7 @@ import numpy as np  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 
 from .evaluate import accuracy_coverage, subset_scores  # noqa: E402
+from .report import costs_for  # noqa: E402
 from .utils import ROOT, load_config, results_dir  # noqa: E402
 
 # ----------------------------------------------------------------------------- style
@@ -38,8 +39,8 @@ METHODS = {  # key: (label, color, marker)
     "probe_answer": ("Answer-token probe", "#2a78d6", "o"),
     "probe_prompt": ("Prompt-only probe", "#1baf7a", "s"),
     "neg_mean_logprob": ("Token log-prob", "#eda100", "D"),
-    "semantic_entropy": ("Semantic entropy", "#e87ba4", "^"),
-    "self_consistency": ("Self-consistency", "#52514e", "v"),
+    "semantic_entropy_10": ("Semantic entropy (10 samples)", "#e87ba4", "^"),
+    "self_consistency_10": ("Self-consistency (10 samples)", "#52514e", "v"),
     "answer_identity": ("Answer identity (control)", "#a8a7a2", "P"),
 }
 DATASET_LABEL = {"trivia_qa": "TriviaQA", "pubmed_qa": "PubMedQA"}
@@ -74,7 +75,7 @@ def _save(fig, name: str, cfg) -> None:
 
 
 def _methods_for(ds: str) -> list[str]:
-    ms = ["probe_answer", "probe_prompt", "neg_mean_logprob", "self_consistency", "semantic_entropy"]
+    ms = ["probe_answer", "probe_prompt", "neg_mean_logprob", "self_consistency_10", "semantic_entropy_10"]
     return ms + (["answer_identity"] if ds == "pubmed_qa" else [])
 
 
@@ -94,6 +95,7 @@ def fig_auroc_comparison(cfg, M) -> None:
         ax.set_title(f"{DATASET_LABEL[ds]} (n={res['probe_answer']['n']})", loc="left", color=INK)
         ax.grid(axis="y", visible=False)
         ax.set_xlim(0.6, 0.95)
+        ax.set_xticks([0.6, 0.7, 0.8, 0.9])
         ax.set_xlabel("AUROC for detecting incorrect answers (95% CI)")
     fig.tight_layout(w_pad=2.5)
     _save(fig, "fig1_auroc_comparison", cfg)
@@ -113,7 +115,7 @@ def fig_abstention(cfg, M) -> None:
         # x-axis is inverted, so ha="right" grows the label leftward, back inside the axes
         ax.text(0.105, 1 - y.mean() + 0.008, "no abstention", fontsize=6.5, color=INK3,
                 ha="right", va="bottom")
-        for m in ["answer_identity", "semantic_entropy", "neg_mean_logprob", "probe_prompt", "probe_answer"]:
+        for m in ["answer_identity", "semantic_entropy_10", "neg_mean_logprob", "probe_prompt", "probe_answer"]:
             if m not in scores:
                 continue
             label, color, marker = METHODS[m]
@@ -127,7 +129,7 @@ def fig_abstention(cfg, M) -> None:
         ax.set_title(DATASET_LABEL[ds], loc="left", color=INK)
     h, l = axes[1].get_legend_handles_labels()
     order = [l.index(k) for k in ["Answer-token probe", "Prompt-only probe", "Token log-prob",
-                                   "Semantic entropy", "Answer identity (control)", "Oracle"]]
+                                   "Semantic entropy (10 samples)", "Answer identity (control)", "Oracle"]]
     fig.legend([h[i] for i in order], [l[i] for i in order], loc="upper center", ncol=6,
                bbox_to_anchor=(0.5, 1.06), handlelength=2.2, columnspacing=1.2)
     fig.tight_layout(w_pad=2.5)
@@ -138,19 +140,19 @@ def fig_abstention(cfg, M) -> None:
 # Label anchors in data coordinates (x, y, ha), placed by hand to avoid collisions:
 # beside the point where there is room, otherwise just beyond the end of its CI whisker.
 LABEL_POS = {
-    "trivia_qa": {"probe_answer": (3.4, 0.884, "right"), "neg_mean_logprob": (4.6, 0.835, "left"),
-                  "probe_prompt": (1.0, 0.768, "center"), "self_consistency": (23.55, 0.870, "center"),
-                  "semantic_entropy": (32.6, 0.768, "center")},
+    "trivia_qa": {"probe_answer": (3.15, 0.884, "right"), "neg_mean_logprob": (4.6, 0.835, "left"),
+                  "probe_prompt": (1.0, 0.768, "center"), "self_consistency_10": (43.0, 0.889, "center"),
+                  "semantic_entropy_10": (70.0, 0.787, "center")},
     "pubmed_qa": {"probe_answer": (2.35, 0.845, "left"), "answer_identity": (2.35, 0.760, "left"),
                   "neg_mean_logprob": (2.35, 0.722, "left"), "probe_prompt": (1.0, 0.879, "center"),
-                  "self_consistency": (10.4, 0.669, "right"), "semantic_entropy": (15.0, 0.676, "left")},
+                  "self_consistency_10": (21.5, 0.636, "center"), "semantic_entropy_10": (28.0, 0.705, "left")},
 }
 
 
 def fig_cost_vs_auroc(cfg, M) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(FULL_W, 2.6), sharey=True)
     for ax, ds in zip(axes, ("trivia_qa", "pubmed_qa")):
-        res, costs = M["comparison"][ds]["subset"], M["costs"][ds]["methods"]
+        res, costs = M["comparison"][ds]["subset"], costs_for(M, ds)
         for m in _methods_for(ds):
             label, color, marker = METHODS[m]
             x = costs[m]["llm_forward_passes"] + costs[m]["nli_forward_passes"]
@@ -160,12 +162,13 @@ def fig_cost_vs_auroc(cfg, M) -> None:
             lx, ly, ha = LABEL_POS[ds][m]
             ax.text(lx, ly, label, ha=ha, va="center", fontsize=7, color=INK)
         ax.set_xscale("log")
-        ax.set_xlim(0.7, 70)
-        ax.set_xticks([1, 2, 5, 10, 20, 50], ["1", "2", "5", "10", "20", "50"])
+        ax.set_xlim(0.7, 160)
+        ax.set_xticks([1, 2, 5, 10, 20, 50, 100], ["1", "2", "5", "10", "20", "50", "100"])
         ax.minorticks_off()
         ax.set_xlabel("Forward passes per question (LLM + NLI, log scale)")
         ax.set_title(DATASET_LABEL[ds], loc="left", color=INK)
     axes[0].set_ylabel("AUROC (95% CI)")
+    axes[0].set_ylim(0.62, 0.92)  # shared y; leaves room for labels under whiskers
     fig.tight_layout(w_pad=2.0)
     _save(fig, "fig3_cost_vs_auroc", cfg)
 

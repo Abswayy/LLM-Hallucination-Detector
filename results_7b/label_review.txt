@@ -1,0 +1,66 @@
+trivia_qa: accuracy 0.531 (1063/2000), flagged 88
+pubmed_qa: accuracy 0.621 (621/1000), flagged 0
+
+=== trivia_qa: 20 random examples (10 labelled correct, 10 incorrect) ===
+[CORRECT  ] (exact) Q: Against which power did Rome fight the 'Punic Wars'?
+     model: 'Carthage' | gold: 'CARTHAGE' | aliases: ['CARTHAGE', 'Qart-ḥadšat', 'Qart-hadshat', 'Carthage']
+[CORRECT  ] (exact) Q: Richard Joseph Daley was the infamous mayor of which major US City in the 1960's?
+     model: 'Chicago' | gold: 'CHICAGO' | aliases: ['CHICAGO', 'Chi-Beria', 'Sayre language academy', 'Chicago']
+[CORRECT  ] (exact) Q: Which is the most northerly of the islands of Japan? Its capital, Sapporo, has hosted the 
+     model: 'Hokkaido' | gold: 'HOKKAIDO' | aliases: ['HOKKAIDO', 'Hokkaidou prefecture', '北海道', 'Hokkaido region']
+[CORRECT  ] (contains) Q: Precisely where were the Winter Olympics of 1932 and 1980 both held?
+     model: 'Lake Placid, New York' | gold: 'Lake Placid' | aliases: ['Lake Placid', 'Lake Placid (disambiguation)', 'Lake placid']
+[CORRECT  ] (exact) Q: In January 1971, Idi Amin deposed Milton Obote in a coup to become President of which coun
+     model: 'Uganda' | gold: 'Uganda' | aliases: ['Uganda', 'Ugandese', 'Ugandans', 'Republic of uganda']
+[CORRECT  ] (exact) Q: The infamous drug cartel run by Pablo Escobar through the 1970s and 1980s takes its name f
+     model: 'Medellín' | gold: 'Medellín' | aliases: ['Medellín', 'Medillan', 'Medellin (Colombia)', 'Medellin']
+[CORRECT  ] (exact) Q: What name is given to any part of a circle that is bounded by two radii and an arc of the 
+     model: 'Sector' | gold: 'SECTOR' | aliases: ['SECTOR', 'Sector', 'Sectors', 'Sectorally']
+[CORRECT  ] (exact) Q: Anaphylaxis is what sort of life-threatening illness?
+     model: 'Allergic reaction' | gold: 'Allergic reaction' | aliases: ['Allergic reaction', 'Allergy treatment', 'Antiallergenic', 'Allergies']
+[CORRECT  ] (exact) Q: In Greek mythology which son of Telamon fought Hector in single combat
+     model: 'Ajax' | gold: 'Ajax' | aliases: ['Ajax', 'Ajax (Disambiguation)', 'Ajax (disambiguation)', 'Town of Ajax']
+[CORRECT  ] (exact) Q: Grozny is the capital of what war-torn Russian republic?
+     model: 'Chechnya' | gold: 'Chechnya' | aliases: ['Chechnya', 'Chechnyan', 'Čečenskaâ Respublika', 'Chechniya']
+[INCORRECT] (none) Q: Cayenne, after which the spicy condiment is named, is a city in which country?
+     model: 'Suriname' | gold: 'French Guiana' | aliases: ['French Guiana', 'Sport in French Guiana', 'GUF', 'French Guianese']
+[INCORRECT] (none) Q: What building in Pall Mall, commissioned by Henry VIII around 1532, is the administrative 
+     model: 'Banqueting House' | gold: "St James's Palace" | aliases: ["St James's Palace", 'St James palace', 'St James Palace', 'Verge of the Palace of St James']
+[INCORRECT] (none) Q: Which US TV series is set in the Princeton-Plainsboro Teaching Hospital?
+     model: 'ER' | gold: 'House' | aliases: ['House', '🏠', 'House (architecture)', 'Dwellinghouse']
+[INCORRECT] (none) Q: Charcot-Marie-Tooth disease is an inherited muscle wasting disease affecting which part of
+     model: 'Peripheral nerves' | gold: 'The legs' | aliases: ['The legs', 'The Legs', 'Betty Grable']
+[INCORRECT] (none) Q: "Which island is/was politically divided by the ""Attilla Line""?"
+     model: 'Korea' | gold: 'CYPRUS' | aliases: ['CYPRUS', 'Culture of Cyprus', 'Kıbrıs', 'Etymology of Cyprus']
+[INCORRECT] (none) Q: Which member of Led Zeppelin appeared at Glastonbury this year with his current band The S
+     model: "John Bonham's son Jason Bonham" | gold: 'Robert Plant' | aliases: ['Robert Plant', 'Karac Plant', 'Rob Plant', 'Robert Anthony Plant']
+[INCORRECT] (none) Q: Which film of 2005, directed by Sam Mendes, is based on former marine and author Anthony S
+     model: 'American Sniper' | gold: 'JARHEAD' | aliases: ['JARHEAD', 'Jarheads', 'Jarhead (disambiguation)', 'Jarhead']
+[INCORRECT] (none) Q: Which South Wales town was formed when Margam and Aberavon combined in the 1920s?
+     model: 'Margamtown' | gold: 'PORT TALBOT' | aliases: ['PORT TALBOT', 'Port Talbot, Neath Port Talbot', 'Port Talbot', 'Porth Talbot']
+[INCORRECT] (none) Q: Who, with 84 goals in 85 games is Hungary’s highest international goal scorer?
+     model: 'Gábor Király' | gold: 'FERENC PUSKÁS' | aliases: ['FERENC PUSKÁS', 'Ferenc Puskas', 'Ferenc Puskás', 'Ocsi']
+[INCORRECT] (none) Q: What socially responsible brand was added to Cadbury's Dairy Milk Chocolate in July 2009?
+     model: 'Saffron Farm' | gold: 'Fairtrade' | aliases: ['Fairtrade', 'Fairtrade certification', 'Fair Trade certification', 'Fair Trade Certification']
+
+=== pubmed_qa: 10 random examples (5 labelled correct, 5 incorrect) ===
+[CORRECT  ] (parsed=no) Q: Is there awareness of pharmaceutical expenditure in the reformed primary care system?
+     model: 'No' | gold: 'no'
+[CORRECT  ] (parsed=no) Q: Do elderly cancer patients have different care needs compared with younger ones?
+     model: 'No' | gold: 'no'
+[CORRECT  ] (parsed=yes) Q: Gynecological cancer alarm symptoms: is contact with specialist care associated with lifes
+     model: 'Yes' | gold: 'yes'
+[CORRECT  ] (parsed=yes) Q: Is gastric cancer different in Korea and the United States?
+     model: 'Yes' | gold: 'yes'
+[CORRECT  ] (parsed=yes) Q: Do liquid-based preparations of urinary cytology perform differently than classically prep
+     model: 'yes' | gold: 'yes'
+[INCORRECT] (parsed=maybe) Q: Birth characteristics and risk of low intellectual performance in early adulthood: are the
+     model: 'maybe' | gold: 'no'
+[INCORRECT] (parsed=maybe) Q: Therapeutic anticoagulation in the trauma patient: is it safe?
+     model: 'maybe' | gold: 'no'
+[INCORRECT] (parsed=maybe) Q: Are financial incentives cost-effective to support smoking cessation during pregnancy?
+     model: 'maybe' | gold: 'yes'
+[INCORRECT] (parsed=no) Q: Does fluoridation reduce the use of dental services among adults?
+     model: 'No' | gold: 'maybe'
+[INCORRECT] (parsed=maybe) Q: Screening for gestational diabetes mellitus: are the criteria proposed by the internationa
+     model: 'maybe' | gold: 'yes'

@@ -13,3 +13,8 @@ paper/*.bbl
 paper/*.blg
 results/smoke/
 results/*_log.txt
+results_7b/**/_chunks/
+results_7b/**/*.pt
+results_7b/**/*.tmp
+results_7b/*_log.txt
+paper/*.pdf.tmp

@@ -550,3 +550,93 @@ Design choices:
   The NLI model (DeBERTa-large, 0.4B parameters) is much smaller than the LLM, so this
   slightly *overstates* semantic entropy's cost in passes. Wall-clock costs (Checkpoint
   4, table C) are the more faithful comparison.
+
+---
+
+## Extension — stronger baselines, SE probes, 7B replication, write-up
+
+All numbers are in `results/metrics.json` (3B) and `results_7b/metrics.json` (7B); the
+paper and README quote them through `src/report.py`, so they are never typed by hand.
+
+### 1. Stronger semantic-entropy baseline
+**Why.** With 5 samples and strict clustering, a reader could argue the probe only beat a
+handicapped baseline.
+
+**What.** We drew 5 more samples per question (`samples_extra.jsonl`; i.i.d. with the
+first 5, so together they are exactly 10 samples) and added a *lenient* clustering rule:
+two answers are the same meaning if neither direction is a contradiction and they are not
+neutral both ways. That lets "Shakespeare" and "William Shakespeare" cluster together.
+10-sample generation was timed separately on an idle GPU.
+
+**Result.** 10 samples help the sampling methods (TriviaQA SE 0.817 → 0.833,
+self-consistency 0.823 → 0.845). The lenient rule barely matters. The answer-token probe
+still beats every variant with CIs excluding 0 (TriviaQA: +0.048 over 10-sample SE,
++0.035 over 10-sample self-consistency). The prompt-only probe stays statistically tied
+with all of them on TriviaQA.
+
+### 2. Semantic Entropy Probes (Kossen et al., 2024) vs. accuracy probes
+**What.** An SE probe (SEP) is trained to predict *high vs. low semantic entropy* (10-sample
+SE, binarized with a two-means split on training questions) instead of correctness. It
+needs no correctness labels. To compare fairly, both kinds of probe are trained on the
+same 500 sampled questions. The SEP target was fixed *before* looking at any SEP result.
+
+**Result (3B).** In-domain, accuracy probes match or beat SEPs (answer token: +0.037 on
+TriviaQA, +0.088 on PubMedQA). Out of domain it depends on direction:
+PubMedQA → TriviaQA favours the SEP (−0.108), while TriviaQA → PubMedQA favours the
+accuracy probe (+0.101). So we reproduce Kossen et al.'s "SEPs generalize better" in one
+direction only.
+
+### 3. Robustness over 5 random splits
+Answer-token probe test AUROC: TriviaQA 0.896 ± 0.011, PubMedQA 0.819 ± 0.022. Token
+log-prob on the same splits: 0.840 ± 0.015 and 0.700 ± 0.069. The headline numbers are not
+a lucky split.
+
+### 4. Transfer depends strongly on the layer (a correction to Checkpoint 4)
+The SEP comparison gave TriviaQA → PubMedQA answer-probe transfer of 0.743, versus 0.540 in
+Checkpoint 4. Their CIs did not overlap, so we investigated. Sweeping all layers (C chosen
+on the source val split; AUROC on all 1,000 PubMedQA questions), transfer ranges from
+0.573 to 0.766 depending on the layer. The layer that is best *in-domain* (24) transfers
+poorly (0.611), while layer 28 transfers best (0.766). The two experiments had simply
+selected different layers.
+
+**Revised conclusion.** It is not that answer-token probes "don't transfer". Transfer is
+fragile and layer-dependent, and choosing the layer on source data alone does not
+reliably pick one that transfers. Stored in `metrics.json` → `transfer_layer_sweep`.
+
+### 5. 7B replication (Qwen2.5-7B-Instruct, 4-bit NF4)
+Same questions, prompts and protocol; full datasets rather than 500 questions, because a
+500-question split leaves only 75 test questions, too few for meaningful CIs. Hidden size
+3,584, 28 layers (saved: 4, 8, …, 28). 7B results were not re-timed; the cost comparison
+is a 3B result.
+
+- Accuracy: TriviaQA 53.2% (3B: 42.6%), PubMedQA 62.1% (3B: 61.6%).
+- TriviaQA: answer-token probe 0.889 vs 10-sample SE 0.830 (Δ +0.059 [+0.027, +0.093]);
+  prompt-only probe ties SE (Δ −0.006 [−0.044, +0.033]). Same pattern as 3B.
+- PubMedQA: **token log-prob drops to 0.519 (below the 0.55 investigate threshold, so we
+  investigated).** The 7B model answers "maybe" 292 times (gold: 110). Its "maybe" answers
+  are right only 13.7% of the time, but it is about as confident when saying "maybe" as
+  otherwise (mean token uncertainty 0.363 vs 0.292 for "yes"). So token probability
+  carries almost no error signal, while the answer word carries a lot (answer identity
+  0.802). Not a pipeline bug: the same code gives 0.853 on 7B TriviaQA. The answer-token
+  probe still beats the answer-identity control (+0.068 [+0.035, +0.100]).
+- Shuffled-label controls ≈ 0.50; 5-split robustness 0.893 ± 0.016 (TriviaQA).
+- Transfer at 7B: TriviaQA → PubMedQA is much better (answer probe 0.821), but
+  PubMedQA → TriviaQA stays weak (0.617).
+- One run-time note: the first background 7B probe run stopped before the SEP step. That
+  step was re-run on its own (same deterministic function, same inputs). `run_all.sh`
+  regenerates everything in one pass.
+
+### 6. Write-up machinery
+- `src/report.py` turns `metrics.json` into `paper/numbers.tex` (398 LaTeX macros),
+  `paper/tables/*.tex`, `results/tables.md`, and `README.md` (rendered from
+  `README.template.md`; it fails loudly on any missing value).
+- Percentages use exact round-half-up. Float rounding had printed 0.4255 as 42.5%; it is
+  42.6%, as in Checkpoint 2.
+- `paper/main.tex` compiles with Tectonic (installed in a separate conda env `tex`) to a
+  4-page PDF. It uses a two-column `article` layout because the official ACL/NeurIPS style
+  files are not on CTAN; moving it into the official template is copy-paste.
+- References marked `TODO-VERIFY` need a manual check.
+- Several sentences were corrected during the number check: a figure caption said
+  "6–15×" more forward passes (actual 11–18×, now "an order of magnitude"), an estimated
+  "~1% label noise" was removed (it was an estimate, not a measurement), and an unverified
+  claim about Farquhar et al.'s sample count was removed.

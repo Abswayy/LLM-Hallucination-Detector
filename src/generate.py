@@ -264,7 +264,10 @@ def run_stage(stage, items, model, tok, eos_ids, capture, cfg, out_dir: Path) ->
     fn = {
         "greedy": lambda b: greedy_batch(b, model, tok, eos_ids, capture, cfg),
         "sample": lambda b: sample_batch(b, model, tok, eos_ids, cfg),
+        # 5 further i.i.d. samples (different seeds) -> 10 samples in total when combined.
+        "sample_extra": lambda b: sample_batch(b, model, tok, eos_ids, cfg),
     }[stage]
+    seed_offset = {"greedy": 0, "sample": 1000, "sample_extra": 2000}[stage]
 
     n_chunks = (len(items) + cs - 1) // cs
     pbar = tqdm(total=len(items), desc=f"{out_dir.name}:{stage}", unit="ex")
@@ -276,7 +279,7 @@ def run_stage(stage, items, model, tok, eos_ids, capture, cfg, out_dir: Path) ->
             continue
         # Per-chunk seed so a resumed run draws the same samples as an uninterrupted one
         # (exact only if the batch size did not change because of an OOM).
-        seed_everything(cfg["seed"] + 1000 * (stage == "sample") + c)
+        seed_everything(cfg["seed"] + seed_offset + c)
         torch.cuda.reset_peak_memory_stats()
         torch.cuda.synchronize()
         t0 = time.perf_counter()
@@ -392,6 +395,27 @@ def process_dataset(name, cfg, model, tok, eos_ids, layer_ids, limit=None) -> di
     return {"greedy": greedy_rows, "samples": sample_rows, "meta": meta, "out_dir": out_dir}
 
 
+def process_extra_samples(name, cfg, model, tok, eos_ids) -> dict:
+    """Draw 5 more samples for the sampled subset (combined with samples.jsonl -> 10).
+
+    Samples are i.i.d. given the prompt, so 5 + 5 draws with different seeds are
+    distributed exactly like 10 draws at once.
+    """
+    examples = load_examples(name, cfg)
+    sub_ids = set(sample_subset_ids(examples, cfg))
+    out_dir = results_dir(cfg) / name
+    items = [it for it in build_items(examples, tok, cfg) if it["id"] in sub_ids]
+    s = run_stage("sample_extra", items, model, tok, eos_ids, None, cfg, out_dir)
+    s_by_id = {r["id"]: r for r in s["rows"]}
+    rows = [s_by_id[e["id"]] for e in examples if e["id"] in s_by_id]
+    write_jsonl(out_dir / "samples_extra.jsonl", rows)
+    meta = {k: v for k, v in s.items() if k != "rows"} | {
+        "n_questions": len(rows),
+        "mean_forward_passes": sum(r["n_forward_passes"] for r in rows) / len(rows)}
+    write_json(out_dir / "generation_meta_extra.json", meta)
+    return meta
+
+
 def _print_examples(res: dict, k: int) -> None:
     by_id = {r["id"]: r for r in res["samples"]}
     for r in res["greedy"][:k]:
@@ -408,16 +432,31 @@ def main():
     ap.add_argument("--dataset", nargs="+", default=["trivia_qa", "pubmed_qa"])
     ap.add_argument("--limit", type=int, default=None, help="smoke test on the first N examples")
     ap.add_argument("--config", default=None)
+    ap.add_argument("--stage", choices=["main", "extra", "all"], default="main",
+                    help="main = greedy + hidden states + 5 samples; extra = 5 more samples")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
     seed_everything(cfg["seed"])
-    tok, model, eos_ids = load_model(cfg)
+    qcfg = None
+    if cfg["model"].get("load_in_4bit"):
+        from transformers import BitsAndBytesConfig
+
+        qcfg = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                  bnb_4bit_compute_dtype=torch.bfloat16,
+                                  bnb_4bit_use_double_quant=True)
+    tok, model, eos_ids = load_model(cfg, quantization_config=qcfg)
     layer_ids = layers_to_save(model.config.num_hidden_layers, cfg["generation"]["layer_stride"])
     print(f"Model {cfg['model']['name']}: {model.config.num_hidden_layers} layers, "
           f"d_model={model.config.hidden_size}; saving layers {layer_ids}")
 
     for name in args.dataset:
+        if args.stage in ("extra", "all"):
+            if args.stage == "all":
+                process_dataset(name, cfg, model, tok, eos_ids, layer_ids)
+            m = process_extra_samples(name, cfg, model, tok, eos_ids)
+            print(f"[{name}] extra samples: {m['n_questions']} questions, {m['seconds']:.1f}s")
+            continue
         res = process_dataset(name, cfg, model, tok, eos_ids, layer_ids, limit=args.limit)
         m = res["meta"]
         print(f"\n[{name}] {m['n_questions']} questions | greedy {m['greedy']['seconds']:.1f}s | "

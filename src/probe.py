@@ -210,6 +210,33 @@ def transfer_experiments(Ds: dict, fixed: dict, cfg: dict) -> dict:
     return out
 
 
+def transfer_layer_sweep(Ds: dict, fixed: dict, cfg: dict) -> dict:
+    """Cross-domain AUROC at EVERY layer (C chosen on the source val split), on the
+    target's test split and on all target questions. Shows how strongly transfer depends
+    on the layer, and whether source-only layer selection finds a layer that transfers."""
+    Cs, seed = cfg["probe"]["C_grid"], cfg["seed"]
+    out = {}
+    for src in DATASETS:
+        for tgt in DATASETS:
+            if src == tgt:
+                continue
+            Ss, Dt = fixed[src]["split"], Ds[tgt]
+            tr, va = Ss == "train", Ss == "val"
+            te = fixed[tgt]["split"] == "test"
+            rows = {}
+            for pos in POSITIONS:
+                Xs, Xt = Ds[src]["X"][pos], Dt["X"][pos]
+                rows[pos] = []
+                for li, L in enumerate(Ds[src]["layers"]):
+                    p, v = fit_select_C(Xs[tr, li], Ds[src]["y"][tr], Xs[va, li], Ds[src]["y"][va], Cs, seed)
+                    s = p.score(Xt[:, li])
+                    rows[pos].append({"layer": L, "source_val_auroc": v,
+                                      "target_test_auroc": float(roc_auc_score(Dt["y"][te], s[te])),
+                                      "target_all_auroc": float(roc_auc_score(Dt["y"], s))})
+            out[f"{src}->{tgt}"] = rows
+    return out
+
+
 # --------------------------------------------------------------------------- protocol B
 def crossfit_scores(D: dict, cfg: dict) -> dict:
     """Out-of-fold probe scores for every question (5 folds by question)."""
@@ -240,6 +267,149 @@ def crossfit_scores(D: dict, cfg: dict) -> dict:
     return {"scores": scores, "chosen": chosen, "fold": fold}
 
 
+BASELINE_ORDER = ["neg_mean_logprob", "neg_min_logprob", "answer_identity", "self_consistency",
+                  "self_consistency_10", "semantic_entropy", "semantic_entropy_lenient",
+                  "semantic_entropy_10", "semantic_entropy_10_lenient"]
+
+# Target for the semantic-entropy probes, fixed BEFORE looking at any SEP result:
+# the standard (strict) semantic entropy with the larger sample budget.
+SEP_TARGET = "semantic_entropy_10"
+
+
+def binarize_se(se_train: np.ndarray) -> float:
+    """Threshold that splits SE values into two groups with minimal total within-group
+    squared error (a 1-D two-means split). Following Kossen et al. (2024), who binarize
+    SE before training a probe [TODO-VERIFY their exact threshold rule]. Computed on
+    training questions only."""
+    vals = np.unique(se_train)
+    if len(vals) == 1:
+        return float(vals[0])
+    best_t, best_sse = vals[0], np.inf
+    for t in vals[:-1]:
+        lo, hi = se_train[se_train <= t], se_train[se_train > t]
+        sse = ((lo - lo.mean()) ** 2).sum() + ((hi - hi.mean()) ** 2).sum()
+        if sse < best_sse:
+            best_t, best_sse = t, sse
+    return float(best_t)
+
+
+def _fit_select(X3, target, tr, va, Cs, seed):
+    """Layer + C chosen on val AUROC against `target`. Returns (layer_index, probe)."""
+    sweep = sweep_layers(X3, target, tr, va, Cs, seed)
+    bi = int(np.argmax([s["val_auroc"] for s in sweep]))
+    return bi, sweep[bi]["probe"]
+
+
+def sep_vs_accuracy_probe(Ds: dict, cfg: dict) -> dict:
+    """Semantic Entropy Probes (Kossen et al., 2024) vs our accuracy probes.
+
+    Both kinds of probe are trained on the SAME questions (the 500 sampled questions,
+    the only ones with semantic entropy) so data size is matched:
+      * accuracy probe : target = "answer is incorrect" (needs gold labels)
+      * SEP            : target = binarized semantic entropy (needs no gold labels, but
+                         needs 11 generations + NLI per training question)
+    Layer and C are selected on an inner validation split against each probe's OWN
+    target (an SEP never sees correctness labels). Evaluated as detectors of incorrect
+    answers: (a) in-domain by 5-fold cross-fitting, (b) cross-domain (train on one
+    dataset's 500 questions, test on the other's 500).
+    """
+    pc, seed = cfg["probe"], cfg["seed"]
+    Cs, K = pc["C_grid"], pc["crossfit_folds"]
+    out = {"target": SEP_TARGET, "in_domain": {}, "transfer": {}}
+    data = {}
+    for name, D in Ds.items():
+        sub = np.where(D["in_subset"])[0]
+        se = np.array([D["baselines"][D["ids"][i]][SEP_TARGET] for i in sub])
+        data[name] = {"sub": sub, "se": se, "y": D["y"][sub]}
+
+    def train(name, pos, kind, tr_mask, va_mask):
+        D, d = Ds[name], data[name]
+        X3 = D["X"][pos][d["sub"]]
+        if kind == "accuracy":
+            target = d["y"]
+        else:
+            t = binarize_se(d["se"][tr_mask])
+            target = (d["se"] > t).astype(int)
+            if target[tr_mask].min() == target[tr_mask].max() or target[va_mask].min() == target[va_mask].max():
+                raise RuntimeError("degenerate SE binarization")
+        bi, p = _fit_select(X3, target, tr_mask, va_mask, Cs, seed)
+        return bi, p
+
+    for name in Ds:
+        d = data[name]
+        n = len(d["sub"])
+        fold = np.random.default_rng(seed + 11).permutation(n) % K
+        idx = bootstrap_indices(n, seed=seed)
+        out["in_domain"][name] = {}
+        for pos in POSITIONS:
+            X3 = Ds[name]["X"][pos][d["sub"]]
+            scores = {"accuracy": np.full(n, np.nan), "sep": np.full(n, np.nan)}
+            for k in range(K):
+                te = fold == k
+                rest = np.where(~te)[0]
+                perm = np.random.default_rng(seed + 2000 + k).permutation(rest)
+                va = np.zeros(n, bool)
+                va[perm[: int(round(len(rest) * 0.15 / 0.85))]] = True
+                tr = ~te & ~va
+                for kind in scores:
+                    bi, p = train(name, pos, kind, tr, va)
+                    scores[kind][te] = p.score(X3[te, bi])
+            res = {f"{kind}_probe": auroc_with_ci(d["y"], s, idx) for kind, s in scores.items()}
+            res["delta_accuracy_minus_sep"] = auroc_diff_ci(d["y"], scores["accuracy"], scores["sep"], idx)
+            out["in_domain"][name][pos] = res
+
+    for src in Ds:
+        for tgt in Ds:
+            if src == tgt:
+                continue
+            ds, dt = data[src], data[tgt]
+            n = len(ds["sub"])
+            perm = np.random.default_rng(seed + 3000).permutation(n)
+            va = np.zeros(n, bool)
+            va[perm[: int(round(0.15 * n))]] = True
+            tr = ~va
+            idx = bootstrap_indices(len(dt["sub"]), seed=seed)
+            out["transfer"][f"{src}->{tgt}"] = {}
+            for pos in POSITIONS:
+                Xt = Ds[tgt]["X"][pos][dt["sub"]]
+                sc = {}
+                for kind in ("accuracy", "sep"):
+                    bi, p = train(src, pos, kind, tr, va)
+                    sc[kind] = p.score(Xt[:, bi])
+                r = {f"{kind}_probe": auroc_with_ci(dt["y"], s, idx) for kind, s in sc.items()}
+                r["delta_accuracy_minus_sep"] = auroc_diff_ci(dt["y"], sc["accuracy"], sc["sep"], idx)
+                out["transfer"][f"{src}->{tgt}"][pos] = r
+    return out
+
+
+def split_robustness(D: dict, cfg: dict, seeds=(42, 43, 44, 45, 46)) -> dict:
+    """Re-run the fixed-split protocol (layer and C chosen on val) for several random
+    70/15/15 splits; report the spread of test AUROC. Shows the headline numbers do not
+    depend on one lucky split."""
+    Cs = cfg["probe"]["C_grid"]
+    y, n = D["y"], len(D["y"])
+    b = D["baselines"]
+    lp = np.array([b[i]["neg_mean_logprob"] for i in D["ids"]])
+    per = {"probe_answer": [], "probe_prompt": [], "neg_mean_logprob": [], "best_layers": []}
+    for s in seeds:
+        split = split_by_question(n, s)
+        assert_disjoint(D["ids"], D["questions"], split)
+        tr, va, te = split == "train", split == "val", split == "test"
+        layers = {}
+        for pos in POSITIONS:
+            bi, p = _fit_select(D["X"][pos], y, tr, va, Cs, cfg["seed"])
+            per[f"probe_{pos}"].append(float(roc_auc_score(y[te], p.score(D["X"][pos][te, bi]))))
+            layers[pos] = D["layers"][bi]
+        per["neg_mean_logprob"].append(float(roc_auc_score(y[te], lp[te])))
+        per["best_layers"].append(layers)
+    summ = {m: {"mean": float(np.mean(v)), "std": float(np.std(v)), "min": float(np.min(v)),
+                "max": float(np.max(v)), "values": v}
+            for m, v in per.items() if m != "best_layers"}
+    summ["best_layers"] = per["best_layers"]
+    summ["seeds"] = list(seeds)
+    return summ
+
+
 def compare_on_subset(D: dict, cf: dict, cfg: dict) -> dict:
     """Probe (out-of-fold) vs every baseline on the 500-question subset, paired bootstrap."""
     seed = cfg["seed"]
@@ -248,9 +418,8 @@ def compare_on_subset(D: dict, cf: dict, cfg: dict) -> dict:
     y = D["y"][sub]
     methods = {"probe_answer": cf["scores"]["answer"][sub],
                "probe_prompt": cf["scores"]["prompt"][sub]}
-    names = ["neg_mean_logprob", "neg_min_logprob", "self_consistency", "semantic_entropy"]
-    if D["name"] == "pubmed_qa":
-        names.insert(2, "answer_identity")
+    first = b[D["ids"][sub[0]]]
+    names = [m for m in BASELINE_ORDER if m in first]  # every baseline that was computed
     for m in names:
         methods[m] = np.array([b[D["ids"][i]][m] for i in sub])
     idx = bootstrap_indices(len(sub), seed=seed)
@@ -321,6 +490,12 @@ def main():
 
     tr = transfer_experiments(Ds, fixed, cfg)
     update_metrics(cfg, ["transfer"], tr)
+    tsweep = transfer_layer_sweep(Ds, fixed, cfg)
+    update_metrics(cfg, ["transfer_layer_sweep"], tsweep)
+    for key, d in tsweep.items():
+        for pos, rows in d.items():
+            print(f"  transfer sweep {key:22s} {pos:6s} (target, all questions): " + " ".join(
+                f"L{r['layer']}:{r['target_all_auroc']:.3f}" for r in rows))
     print("\nTransfer (test split of target):")
     for key, d in tr.items():
         for pos, r in d.items():
@@ -348,6 +523,8 @@ def main():
 
         # Costs of all methods incl. probes (probe head time added to the LLM stage time).
         metrics = json.loads((results_dir(cfg) / "metrics.json").read_text(encoding="utf-8"))
+        if "llm" not in metrics.get("costs", {}).get(name, {}):
+            continue  # no timing run for this setup (the 7B replication is not re-timed)
         costs = method_costs(metrics["costs"][name])
         for pos in POSITIONS:
             head = probe_head_seconds(D, fixed[name]["models"][pos], pos)
@@ -356,8 +533,31 @@ def main():
             costs[m]["seconds_total"] += head
             costs[m]["seconds_overhead"] += head
         if name != "pubmed_qa":
-            costs.pop("answer_identity")
+            costs.pop("answer_identity", None)
         update_metrics(cfg, ["costs", name, "methods"], costs)
+
+    # Robustness: spread of test AUROC over 5 different random 70/15/15 splits.
+    print("\nRobustness over 5 random splits (test AUROC, mean +- sd [min, max]):")
+    for name, D in Ds.items():
+        rob = split_robustness(D, cfg)
+        update_metrics(cfg, ["robustness", name], rob)
+        for m in ("probe_answer", "probe_prompt", "neg_mean_logprob"):
+            v = rob[m]
+            print(f"  {name:9s} {m:16s} {v['mean']:.3f} +- {v['std']:.3f} [{v['min']:.3f}, {v['max']:.3f}]")
+
+    # Semantic Entropy Probes (Kossen et al., 2024) vs accuracy probes, matched data.
+    if all(SEP_TARGET in Ds[n]["baselines"][Ds[n]["ids"][int(np.where(Ds[n]["in_subset"])[0][0])]]
+           for n in Ds):
+        sep = sep_vs_accuracy_probe(Ds, cfg)
+        update_metrics(cfg, ["sep_comparison"], sep)
+        print(f"\nAccuracy probe vs SEP (target: binarized {SEP_TARGET}), trained on the 500 sampled questions:")
+        for scope in ("in_domain", "transfer"):
+            for key, d in sep[scope].items():
+                for pos, r in d.items():
+                    dd = r["delta_accuracy_minus_sep"]
+                    print(f"  {scope:9s} {key:22s} {pos:6s} accuracy {_fmt(r['accuracy_probe'])} | "
+                          f"SEP {_fmt(r['sep_probe'])} | delta {dd['delta']:+.3f} "
+                          f"[{dd['ci95'][0]:+.3f}, {dd['ci95'][1]:+.3f}]")
 
 
 if __name__ == "__main__":

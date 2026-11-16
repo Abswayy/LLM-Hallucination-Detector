@@ -13,7 +13,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_config(path: str | os.PathLike | None = None) -> dict:
+    """Load config.yaml, or another config given by `path` or the HP_CONFIG environment
+    variable (e.g. HP_CONFIG=config_7b.yaml runs every script on the 7B setup)."""
+    path = path or os.environ.get("HP_CONFIG")
     path = Path(path) if path else ROOT / "config.yaml"
+    if not path.is_absolute():
+        path = ROOT / path
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 

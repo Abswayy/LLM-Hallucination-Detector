@@ -1,0 +1,244 @@
+% Workshop-style draft. Every number is a macro generated from results/metrics.json by
+% src/report.py (see numbers.tex). To submit, move the body into the official ACL or
+% NeurIPS workshop template; the content is template-independent.
+\documentclass[10pt,twocolumn]{article}
+\usepackage[letterpaper,margin=0.75in,columnsep=0.25in]{geometry}
+\usepackage{newtxtext,newtxmath}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\tabcolsep}{4pt}
+
+\input{numbers.tex}
+
+\title{\Large\bfseries Cheap Hallucination Detection with Hidden-State Probes:\\
+A Cost-Aware Comparison with Semantic Entropy on Consumer Hardware}
+\author{Anonymous Author(s)}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Sampling-based uncertainty methods such as semantic entropy detect hallucinated answers
+well, but need many generations per query. We ask how much of that signal a
+single linear probe on a model's hidden states recovers, at what cost, and how far it
+can be pushed: before the model answers, and across domains. On Qwen2.5-3B-Instruct,
+evaluated on TriviaQA and PubMedQA with a 12\,GB laptop GPU, a logistic-regression
+probe on the last answer token detects incorrect answers with AUROC \TqAucProbeAns{}
+(TriviaQA) and \PmAucProbeAns{} (PubMedQA). That is significantly better than semantic entropy and
+self-consistency with 10 samples (paired-bootstrap $\Delta$ \TqDProbeAnsvsSEten{} and
+\PmDProbeAnsvsSEten{} over semantic entropy), at about 1\,ms of added latency instead of
+hundreds. A probe that reads only the \emph{prompt}, before any token is generated,
+matches all sampling baselines on TriviaQA. We also report what does \emph{not} work.
+Cross-domain transfer is fragile and strongly layer-dependent. On PubMedQA a large share
+of detectable errors is explained by which answer word the model chose, so we report an
+answer-identity control throughout. A 4-bit 7B replication is included.
+\end{abstract}
+
+\section{Introduction}
+Large language models (LLMs) state wrong answers fluently. A practical hallucination
+detector must be accurate \emph{and} cheap, since it runs on every query.
+Semantic entropy (SE) \citep{kuhn2023semantic,farquhar2024detecting} is a strong
+sampling-based detector: it draws several answers, groups them by meaning with a natural
+language inference (NLI) model, and measures disagreement. Its cost scales with the
+number of samples. A cheaper line of work reads the model's hidden states with linear
+probes \citep{azaria2023internal,kadavath2022language,marks2024geometry}, and
+Semantic Entropy Probes \citep{kossen2024sep} train such probes to predict SE itself.
+
+We contribute a small, carefully controlled study that is fully reproducible on one
+consumer GPU:
+\textbf{(a)}~an explicit cost-versus-accuracy comparison of probes, token probabilities,
+self-consistency and SE, with measured wall-clock latency and forward passes, and baselines
+strengthened to 10 samples and two clustering rules;
+\textbf{(b)}~prompt-only hallucination prediction, before decoding;
+\textbf{(c)}~cross-domain transfer from trivia to biomedical QA, and a matched comparison of
+accuracy probes with SE probes;
+\textbf{(d)}~results for a 3B model, with a 4-bit 7B replication.
+We also report controls that are often omitted: a 200-permutation shuffled-label test,
+paired bootstrap tests for every comparison, five random splits, and an answer-identity
+control for PubMedQA.
+
+\section{Related Work}
+\textbf{Sampling-based uncertainty.} Self-consistency \citep{wang2023selfconsistency} and
+SelfCheckGPT \citep{manakul2023selfcheckgpt} measure agreement between sampled answers;
+semantic entropy \citep{kuhn2023semantic,farquhar2024detecting} clusters samples by
+bidirectional entailment so that paraphrases are not counted as disagreement.
+\textbf{Probing internal states.} Linear probes \citep{alain2016probes} recover truthfulness
+and correctness signals from LLM activations \citep{azaria2023internal,burns2023discovering,
+marks2024geometry,kadavath2022language,chwang2024androids,orgad2025llms}. Knowledge can
+also be estimated before generation \citep{gottesman2024estimating}.
+\textbf{SE probes.} \citet{kossen2024sep} train probes to predict SE, which needs no correctness
+labels, and report better out-of-distribution generalization than accuracy probes. We
+reproduce this comparison at matched training-set size (\S\ref{sec:results}).
+
+\section{Method}
+\label{sec:method}
+\textbf{Generation.} For each question we decode a greedy answer (max 32 tokens) with the chat
+template, record per-token log-probabilities, and store the residual stream at every 4th
+layer for two positions: the \emph{last prompt token} (the state that produces the first
+answer token) and the \emph{last answer token}. For a 500-question subset per dataset we draw
+10 samples (temperature 1.0, top-$p$ 0.95).
+\textbf{Labels.} TriviaQA \citep{joshi2017triviaqa}: SQuAD-normalized exact or whole-word
+containment match against gold aliases. PubMedQA \citep{jin2019pubmedqa}: parsed
+yes/no/maybe vs.\ gold (0 unparseable answers).
+\textbf{Baselines.} Negative mean and min token log-probability; self-consistency
+($1-$agreement of samples with the greedy answer); discrete SE over greedy + samples with
+DeBERTa-large-MNLI \citep{he2021deberta}, using strict bidirectional entailment
+\citep{kuhn2023semantic} or a lenient rule (no contradiction, not both neutral).
+\textbf{Probes.} Standardized $L_2$-logistic regression predicting ``incorrect'', one per
+layer and position; $C$ and the layer are chosen on a validation split, never on test.
+Splits are disjoint by question (asserted in code). For comparisons with sampling
+baselines on the same 500 questions we use 5-fold cross-fitting, so every question is
+scored by a probe that never saw it.
+\textbf{Evaluation.} AUROC for detecting incorrect answers with 95\% bootstrap CIs (1{,}000
+resamples); method differences use a paired bootstrap. Costs are measured on an otherwise
+idle RTX~4080 Laptop GPU with identical batching for all methods.
+
+\section{Experiments}
+Model: Qwen2.5-3B-Instruct \citep{qwen2024qwen25} in bf16. Data: \TqN{} TriviaQA
+(rc.nocontext, validation) questions and all \PmN{} PubMedQA (pqa\_labeled) questions with
+the abstract (without its conclusion) in the prompt. Accuracy is \TqAcc\% (TriviaQA) and
+\PmAcc\% (PubMedQA). The PubMedQA instruction was placed after the abstract. With the
+instruction first, the model answered ``maybe'' on \PmVOneMaybePct\% of questions (gold:
+\PmGoldMaybePct\%; after the change: \PmVThreeMaybePct\%). The choice was made from the answer
+distribution on \PilotN{} questions, before any correctness labels were computed. Replication: Qwen2.5-7B-Instruct in 4-bit NF4
+\citep{dettmers2023qlora}, same questions and prompts.
+
+\section{Results}
+\label{sec:results}
+\begin{table*}[t]
+\centering\small
+\input{tables/main.tex}
+\caption{AUROC for detecting incorrect answers on the same 500 questions per dataset
+(Qwen2.5-3B; probes scored out-of-fold). +ms: measured latency added on top of
+producing the greedy answer. For the prompt-only probe, the full prefill cost is shown in
+parentheses, since it runs before (or instead of) generation. Bold: best per dataset.}
+\label{tab:main}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.82\textwidth]{../figures/fig3_cost_vs_auroc.pdf}
+\caption{Cost vs.\ detection quality (3B). Probes need 1--4 forward passes per question;
+10-sample self-consistency and semantic entropy need an order of magnitude more.}
+\label{fig:cost}
+\end{figure*}
+
+\textbf{Probes beat stronger sampling baselines at a fraction of the cost.}
+Table~\ref{tab:main} and Fig.~\ref{fig:cost}. The answer-token probe is best on both datasets.
+On TriviaQA it improves on 10-sample SE by \TqDProbeAnsvsSEten{} \TqDCiProbeAnsvsSEten{}
+and on 10-sample self-consistency by \TqDProbeAnsvsSCten{} \TqDCiProbeAnsvsSCten{}. On
+PubMedQA the gaps are \PmDProbeAnsvsSEten{} and \PmDProbeAnsvsSCten{}. Its added latency is
+\TqOverProbeAns{}\,ms (TriviaQA), versus \TqOverSEten{}\,ms for 10-sample SE. Ten samples
+help the sampling methods (SE: \TqAucSEfive{}$\to$\TqAucSEten{} on TriviaQA), and lenient
+clustering changes little; the probe's advantage remains. Over five random splits the
+answer-token probe scores \TqRobProbeAns{} (TriviaQA) and \PmRobProbeAns{} (PubMedQA).
+Shuffled-label controls (200 permutations) average \TqShufProbeAns{} (TriviaQA) and
+\PmShufProbeAns{} (PubMedQA).
+
+\textbf{Hallucinations are predictable before answering.} From the last prompt token
+alone (one forward pass, no decoding), the probe reaches \TqAucProbePrompt{} on TriviaQA.
+That is statistically indistinguishable from 10-sample SE ($\Delta$ \TqDProbePromptvsSEten{}
+\TqDCiProbePromptvsSEten{}) at \TqMsProbePrompt{}\,ms versus \TqMsSEten{}\,ms. On PubMedQA it
+reaches \PmAucProbePrompt{}. Caveat: the last prompt token's final layer produces the first
+answer token; for PubMedQA's one-word answers, ``before answering'' means before the answer
+is emitted, not before it is decided, and the long abstract makes the saving small
+(\PmMsProbePrompt{} vs.\ \PmMsLogProb{}\,ms).
+
+\textbf{Controlling for answer identity (PubMedQA).} Error rates depend strongly on the
+word chosen, so predicting errors from the yes/no/maybe word alone (cross-fitted) already
+gives \PmAucAnsId{}. The probes exceed this control ($\Delta$ \PmDProbeAnsvsAnsId{}
+\PmDCiProbeAnsvsAnsId{}). The extra signal lies mostly within ``no'' answers
+(prompt probe \PmWithinNoProbePrompt{}, $n{=}\PmWithinNoN$); within ``yes'' the answer
+probe is at chance (\PmWithinYesProbeAns{}) and below token log-prob (\PmWithinYesLogProb{}).
+
+\begin{table}[t]
+\centering\scriptsize
+\input{tables/sep.tex}
+\caption{Accuracy probes vs.\ SE probes (SEP; target: binarized 10-sample SE),
+both trained on the same 500 questions per dataset. $\Delta$ = accuracy $-$ SEP.}
+\label{tab:sep}
+\end{table}
+
+\textbf{Accuracy probes vs.\ SE probes.} At matched training data (Table~\ref{tab:sep}),
+accuracy probes match or beat SEPs in-domain (answer token: \SepInTqAnsD{} on TriviaQA,
+\SepInPmAnsD{} on PubMedQA). Out of domain the picture is mixed and direction-dependent.
+For the answer-token probe, PubMedQA$\to$TriviaQA favours the SEP (\SepTrPmTqAnsD{}
+\SepTrPmTqAnsDCi{}), in line with \citet{kossen2024sep}, while TriviaQA$\to$PubMedQA favours
+the accuracy probe (\SepTrTqPmAnsD{} \SepTrTqPmAnsDCi{}).
+
+\textbf{Cross-domain transfer is fragile.} With the layer chosen on source validation data,
+TriviaQA$\to$PubMedQA reaches \TrTqtoPmProbePrompt{} (prompt) and \TrTqtoPmProbeAns{}
+(answer token), versus \PmTestProbePrompt{} and \PmTestProbeAns{} in-domain;
+PubMedQA$\to$TriviaQA is near chance for the prompt probe (\TrPmtoTqProbePrompt{}). A sweep
+over layers shows transfer AUROC for the TriviaQA-trained answer probe ranging from
+\TrSweepTqtoPmProbeAnsMin{} to \TrSweepTqtoPmProbeAnsMax{} on PubMedQA. The layer that is best
+in-domain (\TrSweepTqtoPmProbeAnsSel{}) is not the one that transfers best
+(\TrSweepTqtoPmProbeAnsBest{}), so source-only model selection is unreliable.
+
+\begin{table}[t]
+\centering\scriptsize
+\input{tables/scale.tex}
+\caption{3B vs.\ 7B (4-bit NF4): accuracy and AUROC on the same 500 questions.}
+\label{tab:scale}
+\end{table}
+
+\textbf{The findings hold at 7B (4-bit).} With the same questions, prompts and protocol
+(Table~\ref{tab:scale}), Qwen2.5-7B-Instruct answers \SvTqAcc\% of TriviaQA questions
+correctly. The answer-token probe again beats 10-sample SE on TriviaQA
+(\SvTqDProbeAnsvsSEten{} \SvTqDCiProbeAnsvsSEten{}). It also beats the answer-identity
+control on PubMedQA (\SvPmDProbeAnsvsAnsId{} \SvPmDCiProbeAnsvsAnsId{}). The prompt-only
+probe again ties SE on TriviaQA (\SvTqDProbePromptvsSEten{} \SvTqDCiProbePromptvsSEten{}).
+On PubMedQA the 7B model hedges with ``maybe'' more often than the gold labels warrant, and
+it is about as confident when hedging as otherwise. Token log-prob therefore falls to near
+chance (\SvPmAucLogProb{}), while answer identity reaches \SvPmAucAnsId{}. Transfer remains
+asymmetric: TriviaQA$\to$PubMedQA reaches \SvTrTqtoPmProbeAns{} for the answer-token probe,
+PubMedQA$\to$TriviaQA only \SvTrPmtoTqProbeAns{}.
+
+\section{Limitations}
+Two datasets and short answers: SE was designed for, and may be stronger on, longer
+generations, and we used at most 10 samples. Labels come from string matching. TriviaQA
+aliases include noisy Wikipedia redirects (false positives), and formatting differences
+cause false negatives; this label noise is not quantified. PubMedQA test splits are small
+(\PmTestN{} questions), so its CIs are wide. The PubMedQA prompt was chosen from the
+answer distribution on \PilotN{} questions that are also evaluation questions. Probes need correctness labels in-domain. The 7B
+replication uses 4-bit weights, which may perturb hidden states. Results are for one model
+family.
+
+\section{Conclusion}
+On a single consumer GPU, a linear probe on one hidden state is a stronger and two orders
+of magnitude cheaper hallucination detector than 10-sample semantic entropy for short-form
+QA, and the prompt alone carries most of that signal. The probe's weak points are equally
+clear: it needs in-domain labels, and its cross-domain transfer is fragile. Code, cached
+outputs and every number in this paper are generated from one repository.
+
+{\small
+\bibliographystyle{plainnat}
+\bibliography{references}
+}
+
+\appendix
+\section{Additional figures}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{../figures/fig4_layer_sweep.pdf}
+\caption{Probe test AUROC by layer (3B, fixed split). Ring: layer chosen on validation.}
+\end{figure}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{../figures/fig2_abstention.pdf}
+\caption{Accuracy vs.\ coverage when abstaining on the most uncertain questions.}
+\end{figure}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\columnwidth]{../figures/fig5_transfer.pdf}
+\caption{Cross-domain transfer (test AUROC), layer chosen on the source validation split.}
+\end{figure}
+
+\end{document}

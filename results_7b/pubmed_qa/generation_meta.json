@@ -1,0 +1,53 @@
+{
+  "dataset": "pubmed_qa",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "n_questions": 1000,
+  "n_sampled_questions": 500,
+  "layers_saved": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    28
+  ],
+  "hidden_dim": 3584,
+  "max_abs_activation_saved": 214.0,
+  "n_context_truncated": 0,
+  "n_hit_max_new_tokens": 0,
+  "n_empty_answers": 0,
+  "mean_prompt_tokens": 412.155,
+  "greedy": {
+    "seconds": 274.0894291998702,
+    "peak_alloc_gb": 7.599852561950684,
+    "peak_reserved_gb": 8.091796875,
+    "final_batch_size": 16,
+    "mean_forward_passes": 2.0
+  },
+  "sampling": {
+    "seconds": 335.3109097999986,
+    "peak_alloc_gb": 9.337255954742432,
+    "peak_reserved_gb": 9.681640625,
+    "final_batch_size": 4,
+    "mean_forward_passes": 10.0
+  },
+  "settings": {
+    "generation": {
+      "max_new_tokens": 32,
+      "batch_size": 16,
+      "min_batch_size": 1,
+      "chunk_size": 128,
+      "layer_stride": 4
+    },
+    "sampling": {
+      "subset_size": 500,
+      "n_samples": 5,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "batch_size": 8
+    },
+    "seed": 42
+  },
+  "torch": "2.14.1+cu126"
+}

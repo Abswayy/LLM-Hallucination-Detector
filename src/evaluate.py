@@ -46,10 +46,15 @@ METHOD_STAGES = {
     "neg_min_logprob": ["greedy"],
     "answer_identity": ["greedy"],
     "self_consistency": ["greedy", "sample5"],
-    "semantic_entropy": ["greedy", "sample5", "nli"],
+    "self_consistency_10": ["greedy", "sample10"],
+    "semantic_entropy": ["greedy", "sample5", "nli:n5_strict"],
+    "semantic_entropy_lenient": ["greedy", "sample5", "nli:n5_lenient"],
+    "semantic_entropy_10": ["greedy", "sample10", "nli:n10_strict"],
+    "semantic_entropy_10_lenient": ["greedy", "sample10", "nli:n10_lenient"],
     "probe_prompt": ["prefill"],           # can run before any answer is generated
     "probe_answer": ["greedy_hooks"],      # hidden state read during normal decoding
 }
+N_GENERATIONS = {"greedy": 1, "greedy_hooks": 1, "sample5": 5, "sample10": 10}
 
 
 def method_costs(costs: dict) -> dict:
@@ -60,22 +65,23 @@ def method_costs(costs: dict) -> dict:
     For the prompt-only probe the overhead is reported as the full prefill, because it is
     meant to run *before* (or instead of) generation.
     """
-    llm, nli = costs["llm"], costs["nli_clustering"]
+    llm = costs["llm"]
     fp = llm["forward_passes_per_question"]
-    sec = {"prefill": llm["prefill"]["seconds_per_question"],
-           "greedy": llm["greedy"]["seconds_per_question"],
-           "greedy_hooks": llm["greedy_hooks"]["seconds_per_question"],
-           "sample5": llm["sample5"]["seconds_per_question"],
-           "nli": nli["seconds_per_question"]}
+    sec = {s: llm[s]["seconds_per_question"] for s in ("prefill", "greedy", "greedy_hooks",
+                                                       "sample5", "sample10") if s in llm}
+    nli = {"n5_strict": costs["nli_clustering"], **costs.get("nli_clustering_variants", {})}
     out = {}
     for m, stages in METHOD_STAGES.items():
-        total = sum(sec[s] for s in stages)
-        llm_fp = sum(fp[{"greedy_hooks": "greedy"}.get(s, s)] for s in stages if s != "nli")
+        nli_key = next((s.split(":")[1] for s in stages if s.startswith("nli:")), None)
+        llm_stages = [s for s in stages if not s.startswith("nli:")]
+        if any(s not in sec for s in llm_stages) or (nli_key and nli_key not in nli):
+            continue  # stage not measured (yet) for this setup
+        nli_sec = nli[nli_key]["seconds_per_question"] if nli_key else 0.0
+        total = sum(sec[s] for s in llm_stages) + nli_sec
         out[m] = {
-            "generations": sum(1 for s in stages if s in ("greedy", "greedy_hooks"))
-            + (5 if "sample5" in stages else 0),
-            "llm_forward_passes": llm_fp,
-            "nli_forward_passes": nli["nli_calls_per_question"] if "nli" in stages else 0.0,
+            "generations": sum(N_GENERATIONS[s] for s in llm_stages if s != "prefill"),
+            "llm_forward_passes": sum(fp[{"greedy_hooks": "greedy"}.get(s, s)] for s in llm_stages),
+            "nli_forward_passes": nli[nli_key]["nli_calls_per_question"] if nli_key else 0.0,
             "seconds_total": total,
             "seconds_overhead": total if m == "probe_prompt" else total - sec["greedy"],
         }
@@ -121,7 +127,9 @@ def accuracy_coverage(incorrect: np.ndarray, score: np.ndarray) -> np.ndarray:
 
 
 ABSTENTION_METHODS = ["probe_answer", "probe_prompt", "neg_mean_logprob", "neg_min_logprob",
-                      "self_consistency", "semantic_entropy", "answer_identity"]
+                      "self_consistency", "self_consistency_10", "semantic_entropy",
+                      "semantic_entropy_lenient", "semantic_entropy_10",
+                      "semantic_entropy_10_lenient", "answer_identity"]
 
 
 def subset_scores(name: str, cfg: dict) -> tuple[np.ndarray, dict[str, np.ndarray]]:

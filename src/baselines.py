@@ -75,26 +75,41 @@ class EntailmentJudge:
         self.tok = AutoTokenizer.from_pretrained(NLI_MODEL)
         self.model = AutoModelForSequenceClassification.from_pretrained(NLI_MODEL).to(device).eval()
         self.device = device
-        ent = [i for i, lab in self.model.config.id2label.items() if lab.lower() == "entailment"]
-        assert len(ent) == 1, self.model.config.id2label
-        self.ent_id = ent[0]
+        lab = {v.lower(): k for k, v in self.model.config.id2label.items()}
+        assert set(lab) == {"entailment", "neutral", "contradiction"}, lab
+        self.ENT, self.NEU, self.CON = lab["entailment"], lab["neutral"], lab["contradiction"]
         self.n_calls = 0  # number of (premise, hypothesis) pairs scored
 
     @torch.no_grad()
-    def entails(self, pairs: list[tuple[str, str]]) -> list[bool]:
+    def predict(self, pairs: list[tuple[str, str]]) -> list[int]:
+        """NLI label id (entailment / neutral / contradiction) for each (premise, hypothesis)."""
         if not pairs:
             return []
         enc = self.tok([p for p, _ in pairs], [h for _, h in pairs], return_tensors="pt",
                        padding=True, truncation=True, max_length=256).to(self.device)
-        pred = self.model(**enc).logits.argmax(-1)
         self.n_calls += len(pairs)
-        return (pred == self.ent_id).tolist()
+        return self.model(**enc).logits.argmax(-1).tolist()
+
+    def equivalent(self, a_to_b: int, b_to_a: int, mode: str) -> bool:
+        """Same meaning?
+        strict  : entailment in both directions (Kuhn et al., 2023).
+        lenient : no contradiction in either direction, and not neutral both ways. This
+                  admits pairs like "Shakespeare" / "William Shakespeare", where one
+                  direction is only neutral. It mirrors the non-strict option in the code
+                  released with Farquhar et al. (2024) [TODO-VERIFY exact correspondence].
+        """
+        if mode == "strict":
+            return a_to_b == self.ENT and b_to_a == self.ENT
+        if mode == "lenient":
+            return self.CON not in (a_to_b, b_to_a) and not (a_to_b == b_to_a == self.NEU)
+        raise ValueError(mode)
 
 
 def semantic_clusters(question: str, answers: list[str], judge: EntailmentJudge,
-                      dataset: str) -> tuple[list[int], int]:
+                      dataset: str, mode: str = "strict") -> tuple[list[int], int]:
     """Greedy clustering: each answer joins the first cluster whose representative it
-    mutually entails (given the question), else starts a new cluster.
+    is equivalent to (given the question; see EntailmentJudge.equivalent), else starts a
+    new cluster.
 
     Answers identical after normalization are merged without an NLI call (an answer
     trivially entails itself). Returns (cluster id per answer, NLI calls used).
@@ -113,8 +128,9 @@ def semantic_clusters(question: str, answers: list[str], judge: EntailmentJudge,
             for r in reps:
                 pairs += [(f"{question} {answers[r]}", f"{question} {a}"),
                           (f"{question} {a}", f"{question} {answers[r]}")]
-            ent = judge.entails(pairs)
-            hit = next((c for c in range(len(reps)) if ent[2 * c] and ent[2 * c + 1]), None)
+            lab = judge.predict(pairs)
+            hit = next((c for c in range(len(reps))
+                        if judge.equivalent(lab[2 * c], lab[2 * c + 1], mode)), None)
         if hit is None:
             reps.append(i)
             hit = len(reps) - 1
@@ -129,29 +145,51 @@ def entropy_from_assignments(assign: list[int]) -> float:
     return float(max(0.0, -(p * np.log(p)).sum()))  # max() avoids printing -0.0
 
 
-def run_semantic_entropy(name: str, cfg: dict) -> dict[str, dict]:
+def load_samples(name: str, cfg: dict, n: int) -> dict[str, dict]:
+    """Sampled answers per question: the first 5 from samples.jsonl, plus the 5 from
+    samples_extra.jsonl when n == 10."""
+    rd = results_dir(cfg) / name
+    rows = {r["id"]: dict(r) for r in read_jsonl(rd / "samples.jsonl")}
+    if n == 10:
+        for r in read_jsonl(rd / "samples_extra.jsonl"):
+            rows[r["id"]]["samples"] = rows[r["id"]]["samples"] + r["samples"]
+    for r in rows.values():
+        assert len(r["samples"]) == n, (r["id"], len(r["samples"]))
+    return rows
+
+
+# (n samples, clustering mode) -> method name. The first entry is the original baseline.
+SE_VARIANTS = {(5, "strict"): "semantic_entropy", (5, "lenient"): "semantic_entropy_lenient",
+               (10, "strict"): "semantic_entropy_10", (10, "lenient"): "semantic_entropy_10_lenient"}
+
+
+def run_semantic_entropy(name: str, cfg: dict, n: int = 5, mode: str = "strict") -> dict[str, dict]:
     """Compute (or load cached) semantic entropy for the sampled subset of one dataset."""
-    path = results_dir(cfg) / name / "semantic_entropy.jsonl"
+    rd = results_dir(cfg) / name
+    path = rd / ("semantic_entropy.jsonl" if (n, mode) == (5, "strict")
+                 else f"semantic_entropy_n{n}_{mode}.jsonl")
     if path.exists():
         return {r["id"]: r for r in read_jsonl(path)}
     judge = EntailmentJudge()
-    rows = read_jsonl(results_dir(cfg) / name / "samples.jsonl")
+    rows = list(load_samples(name, cfg, n).values())
     # Warm-up so CUDA initialization is not billed to the first question.
-    judge.entails([("a b", "a b")])
+    judge.predict([("a b", "a b")])
     judge.n_calls = 0
     out = []
     torch.cuda.synchronize()
     t0 = time.perf_counter()
-    for r in tqdm(rows, desc=f"{name}:semantic_entropy", unit="q"):
+    for r in tqdm(rows, desc=f"{name}:SE n={n} {mode}", unit="q"):
         answers = [r["greedy"], *r["samples"]]
-        assign, calls = semantic_clusters(r["question"], answers, judge, name)
+        assign, calls = semantic_clusters(r["question"], answers, judge, name, mode)
         out.append({"id": r["id"], "answers": answers, "clusters": assign,
                     "n_clusters": len(set(assign)), "nli_calls": calls,
                     "semantic_entropy": entropy_from_assignments(assign)})
     torch.cuda.synchronize()
     secs = time.perf_counter() - t0
     write_jsonl(path, out)
-    update_metrics(cfg, ["costs", name, "nli_clustering"],
+    key = (["costs", name, "nli_clustering"] if (n, mode) == (5, "strict")
+           else ["costs", name, "nli_clustering_variants", f"n{n}_{mode}"])
+    update_metrics(cfg, key,
                    {"seconds_total": secs, "seconds_per_question": secs / len(out),
                     "nli_calls_per_question": float(np.mean([o["nli_calls"] for o in out])),
                     "n_questions": len(out), "model": NLI_MODEL,
@@ -184,8 +222,11 @@ def score_dataset(name: str, cfg: dict) -> None:
     rd = results_dir(cfg) / name
     greedy = {r["id"]: r for r in read_jsonl(rd / "greedy.jsonl")}
     labels = read_jsonl(rd / "labels.jsonl")
-    samples = {r["id"]: r for r in read_jsonl(rd / "samples.jsonl")}
-    se = run_semantic_entropy(name, cfg)
+    samples = load_samples(name, cfg, 5)
+    has10 = (rd / "samples_extra.jsonl").exists()
+    samples10 = load_samples(name, cfg, 10) if has10 else {}
+    se = {m: run_semantic_entropy(name, cfg, n, mode) for (n, mode), m in SE_VARIANTS.items()
+          if n == 5 or has10}
 
     y = np.array([lab["incorrect"] for lab in labels])
     rows = []
@@ -196,7 +237,11 @@ def score_dataset(name: str, cfg: dict) -> None:
         if lab["id"] in samples:
             assert samples[lab["id"]]["greedy"] == g["answer"]
             r["self_consistency"] = self_consistency(g["answer"], samples[lab["id"]]["samples"], name)
-            r["semantic_entropy"] = se[lab["id"]]["semantic_entropy"]
+            if has10:
+                r["self_consistency_10"] = self_consistency(
+                    g["answer"], samples10[lab["id"]]["samples"], name)
+            for m, d in se.items():
+                r[m] = d[lab["id"]]["semantic_entropy"]
         rows.append(r)
     if name == "pubmed_qa":
         ai = answer_identity_scores([lab["parsed"] for lab in labels], y.astype(float), cfg["seed"])
@@ -206,7 +251,8 @@ def score_dataset(name: str, cfg: dict) -> None:
 
     full_methods = ["neg_mean_logprob", "neg_min_logprob"] + (
         ["answer_identity"] if name == "pubmed_qa" else [])
-    sub_methods = full_methods + ["self_consistency", "semantic_entropy"]
+    sub_methods = (full_methods + ["self_consistency"]
+                   + (["self_consistency_10"] if has10 else []) + list(se))
     res = {"full": {}, "sample_subset": {}}
     idx_full = bootstrap_indices(len(rows), seed=cfg["seed"])
     for m in full_methods:
@@ -216,12 +262,15 @@ def score_dataset(name: str, cfg: dict) -> None:
     idx_sub = bootstrap_indices(len(sub), seed=cfg["seed"])
     for m in sub_methods:
         res["sample_subset"][m] = auroc_with_ci(ys, np.array([r[m] for r in sub]), idx_sub)
-    se_rows = list(se.values())
-    res["semantic_entropy_stats"] = {
-        "mean_n_clusters": float(np.mean([o["n_clusters"] for o in se_rows])),
-        "frac_single_cluster": float(np.mean([o["n_clusters"] == 1 for o in se_rows])),
-        "mean_nli_calls": float(np.mean([o["nli_calls"] for o in se_rows])),
-    }
+    res["semantic_entropy_stats"] = {}
+    for m, d in se.items():
+        rows_m = list(d.values())
+        stats = {"mean_n_clusters": float(np.mean([o["n_clusters"] for o in rows_m])),
+                 "frac_single_cluster": float(np.mean([o["n_clusters"] == 1 for o in rows_m])),
+                 "mean_nli_calls": float(np.mean([o["nli_calls"] for o in rows_m]))}
+        if m == "semantic_entropy":  # original keys kept at top level for compatibility
+            res["semantic_entropy_stats"].update(stats)
+        res["semantic_entropy_stats"][m] = stats
     update_metrics(cfg, ["baselines", name], res)
 
     print(f"\n[{name}]  (y = incorrect; n_full={len(rows)}, n_subset={len(sub)})")
@@ -229,9 +278,12 @@ def score_dataset(name: str, cfg: dict) -> None:
         if split == "semantic_entropy_stats":
             continue
         for m, v in d.items():
-            print(f"  {split:13s} {m:18s} AUROC {v['auroc']:.3f}  "
+            print(f"  {split:13s} {m:28s} AUROC {v['auroc']:.3f}  "
                   f"[{v['ci95'][0]:.3f}, {v['ci95'][1]:.3f}]")
-    print(f"  SE stats: {res['semantic_entropy_stats']}")
+    for m, st in res["semantic_entropy_stats"].items():
+        if isinstance(st, dict):
+            print(f"  {m:28s} clusters {st['mean_n_clusters']:.2f}, single-cluster "
+                  f"{st['frac_single_cluster']:.3f}, NLI calls {st['mean_nli_calls']:.2f}")
 
 
 def main():

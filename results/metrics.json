@@ -99,12 +99,21 @@
         "forward_passes_per_question": {
           "prefill": 1.0,
           "greedy": 3.91,
-          "sample5": 19.64
+          "sample5": 19.64,
+          "sample10": 39.15
         },
         "n_questions": 500,
         "batch_sizes": {
           "greedy_and_prefill": 16,
-          "sample5_prompts": 8
+          "sample5_prompts": 8,
+          "sample10_prompts": 4
+        },
+        "sample10": {
+          "seconds_per_question": 0.14970630119997078,
+          "repeats_seconds_per_question": [
+            0.14970630119997078
+          ],
+          "repeats": 1
         }
       },
       "methods_baselines": {
@@ -159,6 +168,13 @@
           "seconds_total": 0.11178613519994542,
           "seconds_overhead": 0.08763848159997724
         },
+        "self_consistency_10": {
+          "generations": 11,
+          "llm_forward_passes": 43.06,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.17385395479993895,
+          "seconds_overhead": 0.14970630119997078
+        },
         "semantic_entropy": {
           "generations": 6,
           "llm_forward_passes": 23.55,
@@ -166,21 +182,68 @@
           "seconds_total": 0.19334171339997555,
           "seconds_overhead": 0.16919405980000737
         },
+        "semantic_entropy_lenient": {
+          "generations": 6,
+          "llm_forward_passes": 23.55,
+          "nli_forward_passes": 8.824,
+          "seconds_total": 0.20204539379989728,
+          "seconds_overhead": 0.1778977401999291
+        },
+        "semantic_entropy_10": {
+          "generations": 11,
+          "llm_forward_passes": 43.06,
+          "nli_forward_passes": 26.812,
+          "seconds_total": 0.36113434279989454,
+          "seconds_overhead": 0.33698668919992636
+        },
+        "semantic_entropy_10_lenient": {
+          "generations": 11,
+          "llm_forward_passes": 43.06,
+          "nli_forward_passes": 26.16,
+          "seconds_total": 0.36670235999987927,
+          "seconds_overhead": 0.3425547063999111
+        },
         "probe_prompt": {
           "generations": 0,
           "llm_forward_passes": 1.0,
           "nli_forward_passes": 0.0,
-          "seconds_total": 0.006812498347426299,
-          "seconds_overhead": 0.006812498347426299,
-          "probe_head_seconds": 6.857347500044852e-06
+          "seconds_total": 0.00681028357992618,
+          "seconds_overhead": 0.00681028357992618,
+          "probe_head_seconds": 4.642579999926966e-06
         },
         "probe_answer": {
           "generations": 1,
           "llm_forward_passes": 3.91,
           "nli_forward_passes": 0.0,
-          "seconds_total": 0.02492662365748838,
-          "seconds_overhead": 0.0007789700575201998,
-          "probe_head_seconds": 7.425657499697991e-06
+          "seconds_total": 0.024924888639988787,
+          "seconds_overhead": 0.0007772350400206044,
+          "probe_head_seconds": 5.690640000102576e-06
+        }
+      },
+      "nli_clustering_variants": {
+        "n5_lenient": {
+          "seconds_total": 45.12962929997593,
+          "seconds_per_question": 0.09025925859995186,
+          "nli_calls_per_question": 8.824,
+          "n_questions": 500,
+          "model": "microsoft/deberta-large-mnli",
+          "peak_vram_gb": 1.771946907043457
+        },
+        "n10_strict": {
+          "seconds_total": 93.64019399997778,
+          "seconds_per_question": 0.18728038799995556,
+          "nli_calls_per_question": 26.812,
+          "n_questions": 500,
+          "model": "microsoft/deberta-large-mnli",
+          "peak_vram_gb": 1.9132122993469238
+        },
+        "n10_lenient": {
+          "seconds_total": 96.42420259997016,
+          "seconds_per_question": 0.19284840519994031,
+          "nli_calls_per_question": 26.16,
+          "n_questions": 500,
+          "model": "microsoft/deberta-large-mnli",
+          "peak_vram_gb": 1.9132122993469238
         }
       }
     },
@@ -229,12 +292,21 @@
         "forward_passes_per_question": {
           "prefill": 1.0,
           "greedy": 2.0,
-          "sample5": 10.0
+          "sample5": 10.0,
+          "sample10": 20.0
         },
         "n_questions": 500,
         "batch_sizes": {
           "greedy_and_prefill": 16,
-          "sample5_prompts": 8
+          "sample5_prompts": 8,
+          "sample10_prompts": 4
+        },
+        "sample10": {
+          "seconds_per_question": 0.5889467636001063,
+          "repeats_seconds_per_question": [
+            0.5889467636001063
+          ],
+          "repeats": 1
         }
       },
       "methods_baselines": {
@@ -303,6 +375,13 @@
           "seconds_total": 0.37493228940002155,
           "seconds_overhead": 0.31149052679992745
         },
+        "self_consistency_10": {
+          "generations": 11,
+          "llm_forward_passes": 22.0,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.6523885262002004,
+          "seconds_overhead": 0.5889467636001063
+        },
         "semantic_entropy": {
           "generations": 6,
           "llm_forward_passes": 12.0,
@@ -310,21 +389,68 @@
           "seconds_total": 0.39073581899993587,
           "seconds_overhead": 0.32729405639984177
         },
+        "semantic_entropy_lenient": {
+          "generations": 6,
+          "llm_forward_passes": 12.0,
+          "nli_forward_passes": 0.864,
+          "seconds_total": 0.3938853437999496,
+          "seconds_overhead": 0.3304435811998555
+        },
+        "semantic_entropy_10": {
+          "generations": 11,
+          "llm_forward_passes": 22.0,
+          "nli_forward_passes": 1.152,
+          "seconds_total": 0.6743597524001961,
+          "seconds_overhead": 0.610917989800102
+        },
+        "semantic_entropy_10_lenient": {
+          "generations": 11,
+          "llm_forward_passes": 22.0,
+          "nli_forward_passes": 1.264,
+          "seconds_total": 0.6750938376002014,
+          "seconds_overhead": 0.6116520750001073
+        },
         "probe_prompt": {
           "generations": 0,
           "llm_forward_passes": 1.0,
           "nli_forward_passes": 0.0,
-          "seconds_total": 0.05763547745995165,
-          "seconds_overhead": 0.05763547745995165,
-          "probe_head_seconds": 3.58886000176426e-06
+          "seconds_total": 0.05763725143494958,
+          "seconds_overhead": 0.05763725143494958,
+          "probe_head_seconds": 5.362834999687039e-06
         },
         "probe_answer": {
           "generations": 1,
           "llm_forward_passes": 2.0,
           "nli_forward_passes": 0.0,
-          "seconds_total": 0.06525153195496242,
-          "seconds_overhead": 0.001809769354868329,
-          "probe_head_seconds": 3.4783549985149876e-06
+          "seconds_total": 0.0652532228249649,
+          "seconds_overhead": 0.0018114602248708231,
+          "probe_head_seconds": 5.169225001009181e-06
+        }
+      },
+      "nli_clustering_variants": {
+        "n5_lenient": {
+          "seconds_total": 9.476527199964039,
+          "seconds_per_question": 0.018953054399928077,
+          "nli_calls_per_question": 0.864,
+          "n_questions": 500,
+          "model": "microsoft/deberta-large-mnli",
+          "peak_vram_gb": 1.9132122993469238
+        },
+        "n10_strict": {
+          "seconds_total": 10.985613099997863,
+          "seconds_per_question": 0.021971226199995725,
+          "nli_calls_per_question": 1.152,
+          "n_questions": 500,
+          "model": "microsoft/deberta-large-mnli",
+          "peak_vram_gb": 1.9132122993469238
+        },
+        "n10_lenient": {
+          "seconds_total": 11.352655700000469,
+          "seconds_per_question": 0.022705311400000937,
+          "nli_calls_per_question": 1.264,
+          "n_questions": 500,
+          "model": "microsoft/deberta-large-mnli",
+          "peak_vram_gb": 1.9132122993469238
         }
       }
     }
@@ -379,6 +505,15 @@
           "n": 500,
           "n_incorrect": 281
         },
+        "self_consistency_10": {
+          "auroc": 0.8454963519069209,
+          "ci95": [
+            0.8091900490153048,
+            0.8775717532821381
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
         "semantic_entropy": {
           "auroc": 0.8173759729602367,
           "ci95": [
@@ -387,12 +522,59 @@
           ],
           "n": 500,
           "n_incorrect": 281
+        },
+        "semantic_entropy_lenient": {
+          "auroc": 0.8225678025317278,
+          "ci95": [
+            0.7867009432398933,
+            0.8567848128609566
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
+        "semantic_entropy_10": {
+          "auroc": 0.833227709257544,
+          "ci95": [
+            0.7985987738137064,
+            0.8665395644075551
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
+        "semantic_entropy_10_lenient": {
+          "auroc": 0.8354539397780268,
+          "ci95": [
+            0.8017429219059025,
+            0.8685065564182712
+          ],
+          "n": 500,
+          "n_incorrect": 281
         }
       },
       "semantic_entropy_stats": {
         "mean_n_clusters": 2.822,
         "frac_single_cluster": 0.368,
-        "mean_nli_calls": 9.028
+        "mean_nli_calls": 9.028,
+        "semantic_entropy": {
+          "mean_n_clusters": 2.822,
+          "frac_single_cluster": 0.368,
+          "mean_nli_calls": 9.028
+        },
+        "semantic_entropy_lenient": {
+          "mean_n_clusters": 2.684,
+          "frac_single_cluster": 0.398,
+          "mean_nli_calls": 8.824
+        },
+        "semantic_entropy_10": {
+          "mean_n_clusters": 4.28,
+          "frac_single_cluster": 0.322,
+          "mean_nli_calls": 26.812
+        },
+        "semantic_entropy_10_lenient": {
+          "mean_n_clusters": 4.03,
+          "frac_single_cluster": 0.354,
+          "mean_nli_calls": 26.16
+        }
       }
     },
     "pubmed_qa": {
@@ -462,6 +644,15 @@
           "n": 500,
           "n_incorrect": 189
         },
+        "self_consistency_10": {
+          "auroc": 0.6976981575052316,
+          "ci95": [
+            0.6487350187725188,
+            0.7405157743736192
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
         "semantic_entropy": {
           "auroc": 0.6708518348389729,
           "ci95": [
@@ -470,12 +661,59 @@
           ],
           "n": 500,
           "n_incorrect": 189
+        },
+        "semantic_entropy_lenient": {
+          "auroc": 0.6688698344646898,
+          "ci95": [
+            0.6258218958842163,
+            0.7120755538001381
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "semantic_entropy_10": {
+          "auroc": 0.7010582010582012,
+          "ci95": [
+            0.6520312687347204,
+            0.7453248090879316
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "semantic_entropy_10_lenient": {
+          "auroc": 0.7023086476462682,
+          "ci95": [
+            0.655446509323424,
+            0.747273778599171
+          ],
+          "n": 500,
+          "n_incorrect": 189
         }
       },
       "semantic_entropy_stats": {
         "mean_n_clusters": 1.394,
         "frac_single_cluster": 0.638,
-        "mean_nli_calls": 0.852
+        "mean_nli_calls": 0.852,
+        "semantic_entropy": {
+          "mean_n_clusters": 1.394,
+          "frac_single_cluster": 0.638,
+          "mean_nli_calls": 0.852
+        },
+        "semantic_entropy_lenient": {
+          "mean_n_clusters": 1.37,
+          "frac_single_cluster": 0.648,
+          "mean_nli_calls": 0.864
+        },
+        "semantic_entropy_10": {
+          "mean_n_clusters": 1.512,
+          "frac_single_cluster": 0.552,
+          "mean_nli_calls": 1.152
+        },
+        "semantic_entropy_10_lenient": {
+          "mean_n_clusters": 1.484,
+          "frac_single_cluster": 0.566,
+          "mean_nli_calls": 1.264
+        }
       }
     }
   },
@@ -2174,11 +2412,47 @@
           "n": 500,
           "n_incorrect": 281
         },
+        "self_consistency_10": {
+          "auroc": 0.8454963519069209,
+          "ci95": [
+            0.8091900490153048,
+            0.8775717532821381
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
         "semantic_entropy": {
           "auroc": 0.8173759729602367,
           "ci95": [
             0.7818504307224582,
             0.8539994256116227
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
+        "semantic_entropy_lenient": {
+          "auroc": 0.8225678025317278,
+          "ci95": [
+            0.7867009432398933,
+            0.8567848128609566
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
+        "semantic_entropy_10": {
+          "auroc": 0.833227709257544,
+          "ci95": [
+            0.7985987738137064,
+            0.8665395644075551
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
+        "semantic_entropy_10_lenient": {
+          "auroc": 0.8354539397780268,
+          "ci95": [
+            0.8017429219059025,
+            0.8685065564182712
           ],
           "n": 500,
           "n_incorrect": 281
@@ -2206,11 +2480,39 @@
             0.09803841654938228
           ]
         },
+        "probe_answer - self_consistency_10": {
+          "delta": 0.03544093989177599,
+          "ci95": [
+            0.004234708935371067,
+            0.07333315422259595
+          ]
+        },
         "probe_answer - semantic_entropy": {
           "delta": 0.06356131883846017,
           "ci95": [
             0.02915941233366994,
             0.10176680742293837
+          ]
+        },
+        "probe_answer - semantic_entropy_lenient": {
+          "delta": 0.058369489266969055,
+          "ci95": [
+            0.026052290854599956,
+            0.09458544728168976
+          ]
+        },
+        "probe_answer - semantic_entropy_10": {
+          "delta": 0.04770958254115287,
+          "ci95": [
+            0.015935736403780043,
+            0.0851053497591305
+          ]
+        },
+        "probe_answer - semantic_entropy_10_lenient": {
+          "delta": 0.04548335202067,
+          "ci95": [
+            0.012812424543831578,
+            0.07895490161149793
           ]
         },
         "probe_prompt - neg_mean_logprob": {
@@ -2234,11 +2536,39 @@
             0.04133939767962184
           ]
         },
+        "probe_prompt - self_consistency_10": {
+          "delta": -0.024358536862802427,
+          "ci95": [
+            -0.06316497286519131,
+            0.015177760239180289
+          ]
+        },
         "probe_prompt - semantic_entropy": {
           "delta": 0.00376184208388175,
           "ci95": [
             -0.036088330894054305,
             0.044506689385749774
+          ]
+        },
+        "probe_prompt - semantic_entropy_lenient": {
+          "delta": -0.0014299874876093632,
+          "ci95": [
+            -0.0407230477394733,
+            0.038500050582351814
+          ]
+        },
+        "probe_prompt - semantic_entropy_10": {
+          "delta": -0.012089894213425545,
+          "ci95": [
+            -0.04936919663773861,
+            0.02687753876079867
+          ]
+        },
+        "probe_prompt - semantic_entropy_10_lenient": {
+          "delta": -0.01431612473390842,
+          "ci95": [
+            -0.05258160741042252,
+            0.02266493389024725
           ]
         }
       },
@@ -2384,11 +2714,47 @@
           "n": 500,
           "n_incorrect": 189
         },
+        "self_consistency_10": {
+          "auroc": 0.6976981575052316,
+          "ci95": [
+            0.6487350187725188,
+            0.7405157743736192
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
         "semantic_entropy": {
           "auroc": 0.6708518348389729,
           "ci95": [
             0.6242796141413195,
             0.7146685511011655
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "semantic_entropy_lenient": {
+          "auroc": 0.6688698344646898,
+          "ci95": [
+            0.6258218958842163,
+            0.7120755538001381
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "semantic_entropy_10": {
+          "auroc": 0.7010582010582012,
+          "ci95": [
+            0.6520312687347204,
+            0.7453248090879316
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "semantic_entropy_10_lenient": {
+          "auroc": 0.7023086476462682,
+          "ci95": [
+            0.655446509323424,
+            0.747273778599171
           ],
           "n": 500,
           "n_incorrect": 189
@@ -2423,11 +2789,39 @@
             0.2182889134706798
           ]
         },
+        "probe_answer - self_consistency_10": {
+          "delta": 0.14095170043723093,
+          "ci95": [
+            0.09381563935658087,
+            0.18883954795013952
+          ]
+        },
         "probe_answer - semantic_entropy": {
           "delta": 0.16779802310348957,
           "ci95": [
             0.11771231839412669,
             0.21613623002361063
+          ]
+        },
+        "probe_answer - semantic_entropy_lenient": {
+          "delta": 0.16978002347777266,
+          "ci95": [
+            0.12047702688822504,
+            0.217231393615344
+          ]
+        },
+        "probe_answer - semantic_entropy_10": {
+          "delta": 0.13759165688426134,
+          "ci95": [
+            0.08973754815630179,
+            0.18649271334992118
+          ]
+        },
+        "probe_answer - semantic_entropy_10_lenient": {
+          "delta": 0.13634121029619428,
+          "ci95": [
+            0.08747499904311679,
+            0.18687969545840397
           ]
         },
         "probe_prompt - neg_mean_logprob": {
@@ -2458,11 +2852,39 @@
             0.20618169311207454
           ]
         },
+        "probe_prompt - self_consistency_10": {
+          "delta": 0.13253032545637033,
+          "ci95": [
+            0.08709980127446172,
+            0.17791453785712383
+          ]
+        },
         "probe_prompt - semantic_entropy": {
           "delta": 0.15937664812262897,
           "ci95": [
             0.10990783452570232,
             0.20456376092231643
+          ]
+        },
+        "probe_prompt - semantic_entropy_lenient": {
+          "delta": 0.16135864849691206,
+          "ci95": [
+            0.11374761824324334,
+            0.20632854813945636
+          ]
+        },
+        "probe_prompt - semantic_entropy_10": {
+          "delta": 0.12917028190340074,
+          "ci95": [
+            0.08379911029304239,
+            0.17530794290199037
+          ]
+        },
+        "probe_prompt - semantic_entropy_10_lenient": {
+          "delta": 0.12791983531533369,
+          "ci95": [
+            0.08210947210106666,
+            0.17177336467700205
           ]
         }
       },
@@ -2696,12 +3118,44 @@
             "0.8": 0.5250675675675676
           }
         },
+        "self_consistency_10": {
+          "aurac": 0.686712014684156,
+          "accuracy_at_coverage": {
+            "0.2": 0.8441558441558441,
+            "0.5": 0.6910666666666667,
+            "0.8": 0.5341666666666667
+          }
+        },
         "semantic_entropy": {
           "aurac": 0.6581724044525713,
           "accuracy_at_coverage": {
             "0.2": 0.7717391304347827,
             "0.5": 0.6994782608695652,
             "0.8": 0.5275462962962962
+          }
+        },
+        "semantic_entropy_lenient": {
+          "aurac": 0.658201932012408,
+          "accuracy_at_coverage": {
+            "0.2": 0.7638190954773869,
+            "0.5": 0.700377358490566,
+            "0.8": 0.5326851851851852
+          }
+        },
+        "semantic_entropy_10": {
+          "aurac": 0.6715808673194054,
+          "accuracy_at_coverage": {
+            "0.2": 0.8012422360248447,
+            "0.5": 0.6993333333333334,
+            "0.8": 0.5275
+          }
+        },
+        "semantic_entropy_10_lenient": {
+          "aurac": 0.669969083157631,
+          "accuracy_at_coverage": {
+            "0.2": 0.7909604519774011,
+            "0.5": 0.7053333333333334,
+            "0.8": 0.5325
           }
         },
         "oracle": {
@@ -2758,12 +3212,44 @@
             "0.8": 0.6845454545454546
           }
         },
+        "self_consistency_10": {
+          "aurac": 0.7437282882235664,
+          "accuracy_at_coverage": {
+            "0.2": 0.7862318840579711,
+            "0.5": 0.7862318840579711,
+            "0.8": 0.6753048780487805
+          }
+        },
         "semantic_entropy": {
           "aurac": 0.7196495291784202,
           "accuracy_at_coverage": {
             "0.2": 0.7429467084639498,
             "0.5": 0.7429467084639498,
             "0.8": 0.6857865168539325
+          }
+        },
+        "semantic_entropy_lenient": {
+          "aurac": 0.7182561844209827,
+          "accuracy_at_coverage": {
+            "0.2": 0.7407407407407408,
+            "0.5": 0.7407407407407407,
+            "0.8": 0.6853932584269663
+          }
+        },
+        "semantic_entropy_10": {
+          "aurac": 0.744638564101848,
+          "accuracy_at_coverage": {
+            "0.2": 0.7862318840579711,
+            "0.5": 0.7862318840579711,
+            "0.8": 0.677734375
+          }
+        },
+        "semantic_entropy_10_lenient": {
+          "aurac": 0.7445401263404281,
+          "accuracy_at_coverage": {
+            "0.2": 0.784452296819788,
+            "0.5": 0.784452296819788,
+            "0.8": 0.68
           }
         },
         "answer_identity": {
@@ -2784,5 +3270,653 @@
         }
       }
     }
+  },
+  "robustness": {
+    "trivia_qa": {
+      "probe_answer": {
+        "mean": 0.8961743217972871,
+        "std": 0.011168343702328021,
+        "min": 0.8796709753231493,
+        "max": 0.908702761627907,
+        "values": [
+          0.908702761627907,
+          0.8796709753231493,
+          0.9029684435728293,
+          0.9032559796891007,
+          0.8862734487734488
+        ]
+      },
+      "probe_prompt": {
+        "mean": 0.8247125641248653,
+        "std": 0.015878933388411683,
+        "min": 0.8062770562770564,
+        "max": 0.8483809184446127,
+        "values": [
+          0.8372547238372093,
+          0.8205875440658049,
+          0.8110625779996434,
+          0.8483809184446127,
+          0.8062770562770564
+        ]
+      },
+      "neg_mean_logprob": {
+        "mean": 0.8399638637135798,
+        "std": 0.015147327317588288,
+        "min": 0.8203333927616331,
+        "max": 0.863213219901118,
+        "values": [
+          0.8453397529069768,
+          0.8441833137485312,
+          0.8203333927616331,
+          0.863213219901118,
+          0.8267496392496393
+        ]
+      },
+      "best_layers": [
+        {
+          "prompt": 28,
+          "answer": 24
+        },
+        {
+          "prompt": 32,
+          "answer": 20
+        },
+        {
+          "prompt": 28,
+          "answer": 28
+        },
+        {
+          "prompt": 28,
+          "answer": 24
+        },
+        {
+          "prompt": 28,
+          "answer": 24
+        }
+      ],
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ]
+    },
+    "pubmed_qa": {
+      "probe_answer": {
+        "mean": 0.8190046916320515,
+        "std": 0.022349615807163214,
+        "min": 0.7812,
+        "max": 0.8422038980509745,
+        "values": [
+          0.8281339712918662,
+          0.8422038980509745,
+          0.7812,
+          0.8364361702127658,
+          0.8070494186046511
+        ]
+      },
+      "probe_prompt": {
+        "mean": 0.8174161038723466,
+        "std": 0.01981705298904896,
+        "min": 0.7954000000000001,
+        "max": 0.8508245877061469,
+        "values": [
+          0.8273684210526315,
+          0.8508245877061469,
+          0.7954000000000001,
+          0.8109802431610942,
+          0.8025072674418605
+        ]
+      },
+      "neg_mean_logprob": {
+        "mean": 0.6995655972870637,
+        "std": 0.06868867466555514,
+        "min": 0.606468023255814,
+        "max": 0.795727136431784,
+        "values": [
+          0.76,
+          0.795727136431784,
+          0.6658000000000001,
+          0.6698328267477204,
+          0.606468023255814
+        ]
+      },
+      "best_layers": [
+        {
+          "prompt": 36,
+          "answer": 32
+        },
+        {
+          "prompt": 28,
+          "answer": 36
+        },
+        {
+          "prompt": 36,
+          "answer": 24
+        },
+        {
+          "prompt": 36,
+          "answer": 28
+        },
+        {
+          "prompt": 36,
+          "answer": 24
+        }
+      ],
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ]
+    }
+  },
+  "sep_comparison": {
+    "target": "semantic_entropy_10",
+    "in_domain": {
+      "trivia_qa": {
+        "prompt": {
+          "accuracy_probe": {
+            "auroc": 0.7724694908919547,
+            "ci95": [
+              0.7317482848219853,
+              0.8126897452040196
+            ],
+            "n": 500,
+            "n_incorrect": 281
+          },
+          "sep_probe": {
+            "auroc": 0.7590471083378021,
+            "ci95": [
+              0.7146527693256945,
+              0.7964566117326561
+            ],
+            "n": 500,
+            "n_incorrect": 281
+          },
+          "delta_accuracy_minus_sep": {
+            "delta": 0.013422382554152623,
+            "ci95": [
+              -0.02069514616086849,
+              0.05177168277319693
+            ]
+          }
+        },
+        "answer": {
+          "accuracy_probe": {
+            "auroc": 0.8208290677456572,
+            "ci95": [
+              0.7828605574803668,
+              0.8579610127798
+            ],
+            "n": 500,
+            "n_incorrect": 281
+          },
+          "sep_probe": {
+            "auroc": 0.7838768910772032,
+            "ci95": [
+              0.742913484969583,
+              0.8224868277946021
+            ],
+            "n": 500,
+            "n_incorrect": 281
+          },
+          "delta_accuracy_minus_sep": {
+            "delta": 0.03695217666845407,
+            "ci95": [
+              -0.0026092746568482763,
+              0.07892104838472962
+            ]
+          }
+        }
+      },
+      "pubmed_qa": {
+        "prompt": {
+          "accuracy_probe": {
+            "auroc": 0.7933956004695555,
+            "ci95": [
+              0.7503775643905362,
+              0.8301193550183813
+            ],
+            "n": 500,
+            "n_incorrect": 189
+          },
+          "sep_probe": {
+            "auroc": 0.7524626141989484,
+            "ci95": [
+              0.7068668120082049,
+              0.7928287567859024
+            ],
+            "n": 500,
+            "n_incorrect": 189
+          },
+          "delta_accuracy_minus_sep": {
+            "delta": 0.04093298627060704,
+            "ci95": [
+              0.0072777025368247405,
+              0.07471155721613994
+            ]
+          }
+        },
+        "answer": {
+          "accuracy_probe": {
+            "auroc": 0.8418823049048129,
+            "ci95": [
+              0.8029423245928515,
+              0.8741953824815654
+            ],
+            "n": 500,
+            "n_incorrect": 189
+          },
+          "sep_probe": {
+            "auroc": 0.7539597475288794,
+            "ci95": [
+              0.7107607040750713,
+              0.7926419695713844
+            ],
+            "n": 500,
+            "n_incorrect": 189
+          },
+          "delta_accuracy_minus_sep": {
+            "delta": 0.08792255737593346,
+            "ci95": [
+              0.04645268870869772,
+              0.1304036432436136
+            ]
+          }
+        }
+      }
+    },
+    "transfer": {
+      "trivia_qa->pubmed_qa": {
+        "prompt": {
+          "accuracy_probe": {
+            "auroc": 0.5332856972728355,
+            "ci95": [
+              0.4831609729621667,
+              0.5835090622813742
+            ],
+            "n": 500,
+            "n_incorrect": 189
+          },
+          "sep_probe": {
+            "auroc": 0.5993807312135286,
+            "ci95": [
+              0.5473907853583454,
+              0.6482426990668968
+            ],
+            "n": 500,
+            "n_incorrect": 189
+          },
+          "delta_accuracy_minus_sep": {
+            "delta": -0.06609503394069316,
+            "ci95": [
+              -0.12264184790965471,
+              -0.010207151158901879
+            ]
+          }
+        },
+        "answer": {
+          "accuracy_probe": {
+            "auroc": 0.7432586467956243,
+            "ci95": [
+              0.6961056357418195,
+              0.7867611579294186
+            ],
+            "n": 500,
+            "n_incorrect": 189
+          },
+          "sep_probe": {
+            "auroc": 0.6421170826315521,
+            "ci95": [
+              0.5925666612223477,
+              0.694025460117988
+            ],
+            "n": 500,
+            "n_incorrect": 189
+          },
+          "delta_accuracy_minus_sep": {
+            "delta": 0.10114156416407216,
+            "ci95": [
+              0.06279056067772627,
+              0.1418100153109225
+            ]
+          }
+        }
+      },
+      "pubmed_qa->trivia_qa": {
+        "prompt": {
+          "accuracy_probe": {
+            "auroc": 0.4692796438031167,
+            "ci95": [
+              0.42506788992539646,
+              0.5210157568869319
+            ],
+            "n": 500,
+            "n_incorrect": 281
+          },
+          "sep_probe": {
+            "auroc": 0.4730821105315329,
+            "ci95": [
+              0.4235520901759344,
+              0.5240690391676867
+            ],
+            "n": 500,
+            "n_incorrect": 281
+          },
+          "delta_accuracy_minus_sep": {
+            "delta": -0.003802466728416165,
+            "ci95": [
+              -0.0662402213711262,
+              0.058573243825600224
+            ]
+          }
+        },
+        "answer": {
+          "accuracy_probe": {
+            "auroc": 0.6123271421375063,
+            "ci95": [
+              0.5640242912782099,
+              0.6631227453910633
+            ],
+            "n": 500,
+            "n_incorrect": 281
+          },
+          "sep_probe": {
+            "auroc": 0.720632444466111,
+            "ci95": [
+              0.6749497325825278,
+              0.7629047814635904
+            ],
+            "n": 500,
+            "n_incorrect": 281
+          },
+          "delta_accuracy_minus_sep": {
+            "delta": -0.10830530232860469,
+            "ci95": [
+              -0.17392481807099835,
+              -0.04013734453754688
+            ]
+          }
+        }
+      }
+    }
+  },
+  "transfer_layer_sweep": {
+    "trivia_qa->pubmed_qa": {
+      "prompt": [
+        {
+          "layer": 4,
+          "source_val_auroc": 0.7105820593111071,
+          "target_test_auroc": 0.46622009569377987,
+          "target_all_auroc": 0.4907881831709957
+        },
+        {
+          "layer": 8,
+          "source_val_auroc": 0.6746177933321054,
+          "target_test_auroc": 0.4595215311004785,
+          "target_all_auroc": 0.4813861268939394
+        },
+        {
+          "layer": 12,
+          "source_val_auroc": 0.7016485540615215,
+          "target_test_auroc": 0.47674641148325364,
+          "target_all_auroc": 0.4828763359036796
+        },
+        {
+          "layer": 16,
+          "source_val_auroc": 0.7393166328974028,
+          "target_test_auroc": 0.43732057416267944,
+          "target_all_auroc": 0.5136126893939393
+        },
+        {
+          "layer": 20,
+          "source_val_auroc": 0.7744520169460306,
+          "target_test_auroc": 0.44516746411483255,
+          "target_all_auroc": 0.5525737283549784
+        },
+        {
+          "layer": 24,
+          "source_val_auroc": 0.8034168355129858,
+          "target_test_auroc": 0.6371291866028708,
+          "target_all_auroc": 0.6548591382575758
+        },
+        {
+          "layer": 28,
+          "source_val_auroc": 0.8708325658500645,
+          "target_test_auroc": 0.7412440191387559,
+          "target_all_auroc": 0.6855595576298701
+        },
+        {
+          "layer": 32,
+          "source_val_auroc": 0.8597347577822803,
+          "target_test_auroc": 0.7743540669856459,
+          "target_all_auroc": 0.7363788555194806
+        },
+        {
+          "layer": 36,
+          "source_val_auroc": 0.8537944372812672,
+          "target_test_auroc": 0.4956937799043062,
+          "target_all_auroc": 0.5029592803030303
+        }
+      ],
+      "answer": [
+        {
+          "layer": 4,
+          "source_val_auroc": 0.6941886166881561,
+          "target_test_auroc": 0.6019138755980862,
+          "target_all_auroc": 0.573728354978355
+        },
+        {
+          "layer": 8,
+          "source_val_auroc": 0.7120095781911954,
+          "target_test_auroc": 0.6348325358851674,
+          "target_all_auroc": 0.5733605587121212
+        },
+        {
+          "layer": 12,
+          "source_val_auroc": 0.7698471173328422,
+          "target_test_auroc": 0.7806698564593302,
+          "target_all_auroc": 0.7434895833333334
+        },
+        {
+          "layer": 16,
+          "source_val_auroc": 0.8771873273162645,
+          "target_test_auroc": 0.6461244019138757,
+          "target_all_auroc": 0.5995840097402597
+        },
+        {
+          "layer": 20,
+          "source_val_auroc": 0.8994750414440964,
+          "target_test_auroc": 0.751578947368421,
+          "target_all_auroc": 0.7278434456168832
+        },
+        {
+          "layer": 24,
+          "source_val_auroc": 0.9098360655737705,
+          "target_test_auroc": 0.5402870813397129,
+          "target_all_auroc": 0.6114338135822511
+        },
+        {
+          "layer": 28,
+          "source_val_auroc": 0.9011788543009762,
+          "target_test_auroc": 0.7578947368421053,
+          "target_all_auroc": 0.7661449878246753
+        },
+        {
+          "layer": 32,
+          "source_val_auroc": 0.8856142936083993,
+          "target_test_auroc": 0.711578947368421,
+          "target_all_auroc": 0.6974896847943723
+        },
+        {
+          "layer": 36,
+          "source_val_auroc": 0.8643396573954688,
+          "target_test_auroc": 0.72688995215311,
+          "target_all_auroc": 0.7012944737554113
+        }
+      ]
+    },
+    "pubmed_qa->trivia_qa": {
+      "prompt": [
+        {
+          "layer": 4,
+          "source_val_auroc": 0.5824468085106383,
+          "target_test_auroc": 0.45934774709302323,
+          "target_all_auroc": 0.4830113346403504
+        },
+        {
+          "layer": 8,
+          "source_val_auroc": 0.5643996960486323,
+          "target_test_auroc": 0.5470112645348838,
+          "target_all_auroc": 0.5323803767440957
+        },
+        {
+          "layer": 12,
+          "source_val_auroc": 0.6447568389057752,
+          "target_test_auroc": 0.5207576308139535,
+          "target_all_auroc": 0.5247366790107169
+        },
+        {
+          "layer": 16,
+          "source_val_auroc": 0.6208206686930091,
+          "target_test_auroc": 0.47179324127906974,
+          "target_all_auroc": 0.4795039675843399
+        },
+        {
+          "layer": 20,
+          "source_val_auroc": 0.6020136778115501,
+          "target_test_auroc": 0.5430141715116279,
+          "target_all_auroc": 0.5065560508857138
+        },
+        {
+          "layer": 24,
+          "source_val_auroc": 0.6823708206686929,
+          "target_test_auroc": 0.7010356104651163,
+          "target_all_auroc": 0.6826893870826213
+        },
+        {
+          "layer": 28,
+          "source_val_auroc": 0.8478343465045592,
+          "target_test_auroc": 0.6516170058139537,
+          "target_all_auroc": 0.6504209965442795
+        },
+        {
+          "layer": 32,
+          "source_val_auroc": 0.8717705167173253,
+          "target_test_auroc": 0.6266351744186047,
+          "target_all_auroc": 0.6126882927881906
+        },
+        {
+          "layer": 36,
+          "source_val_auroc": 0.8803191489361702,
+          "target_test_auroc": 0.4960483284883721,
+          "target_all_auroc": 0.49898496521268687
+        }
+      ],
+      "answer": [
+        {
+          "layer": 4,
+          "source_val_auroc": 0.7676671732522796,
+          "target_test_auroc": 0.445812136627907,
+          "target_all_auroc": 0.45805017186558794
+        },
+        {
+          "layer": 8,
+          "source_val_auroc": 0.7898936170212766,
+          "target_test_auroc": 0.565406976744186,
+          "target_all_auroc": 0.5081044263698368
+        },
+        {
+          "layer": 12,
+          "source_val_auroc": 0.8018617021276596,
+          "target_test_auroc": 0.4777434593023256,
+          "target_all_auroc": 0.48805327066196635
+        },
+        {
+          "layer": 16,
+          "source_val_auroc": 0.8102203647416414,
+          "target_test_auroc": 0.5416061046511629,
+          "target_all_auroc": 0.5281289917457473
+        },
+        {
+          "layer": 20,
+          "source_val_auroc": 0.7982522796352584,
+          "target_test_auroc": 0.6391260901162791,
+          "target_all_auroc": 0.6325062717388747
+        },
+        {
+          "layer": 24,
+          "source_val_auroc": 0.8383358662613981,
+          "target_test_auroc": 0.689998183139535,
+          "target_all_auroc": 0.7216411552885614
+        },
+        {
+          "layer": 28,
+          "source_val_auroc": 0.8506838905775076,
+          "target_test_auroc": 0.7281976744186046,
+          "target_all_auroc": 0.6901162713400197
+        },
+        {
+          "layer": 32,
+          "source_val_auroc": 0.8618920972644377,
+          "target_test_auroc": 0.577171148255814,
+          "target_all_auroc": 0.5850803692783486
+        },
+        {
+          "layer": 36,
+          "source_val_auroc": 0.8508738601823708,
+          "target_test_auroc": 0.6321311773255814,
+          "target_all_auroc": 0.647476628632265
+        }
+      ]
+    }
+  },
+  "runtime": {
+    "trivia_qa": {
+      "greedy_and_hidden_s": 75.61064989987062,
+      "sampling_5_s": 44.09986449999269,
+      "sampling_extra_5_s": 38.25107700005174,
+      "nli_all_variants_s": 275.97181499993894,
+      "peak_vram_gb": 6.430695533752441
+    },
+    "pubmed_qa": {
+      "greedy_and_hidden_s": 113.40954870003043,
+      "sampling_5_s": 152.95974569994723,
+      "sampling_extra_5_s": 140.14262400002917,
+      "nli_all_variants_s": 39.716560799919534,
+      "peak_vram_gb": 9.477692127227783
+    },
+    "total_gpu_minutes": 14.66936475999634
+  },
+  "prompt_selection": {
+    "n_pilot": 100,
+    "pilot": {
+      "v1_original": {
+        "yes": 24,
+        "maybe": 71,
+        "no": 5
+      },
+      "v2_when_maybe": {
+        "yes": 22,
+        "maybe": 72,
+        "no": 6
+      },
+      "v3_instruction_last": {
+        "yes": 41,
+        "no": 40,
+        "maybe": 19
+      },
+      "v4_yes_no_first": {
+        "yes": 31,
+        "no": 68,
+        "maybe": 1
+      }
+    },
+    "v1_maybe_rate": 0.698,
+    "final_maybe_rate": 0.188,
+    "gold_maybe_rate": 0.11
   }
 }
