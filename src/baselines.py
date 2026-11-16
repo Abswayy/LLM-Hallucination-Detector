@@ -95,8 +95,7 @@ class EntailmentJudge:
         strict  : entailment in both directions (Kuhn et al., 2023).
         lenient : no contradiction in either direction, and not neutral both ways. This
                   admits pairs like "Shakespeare" / "William Shakespeare", where one
-                  direction is only neutral. It mirrors the non-strict option in the code
-                  released with Farquhar et al. (2024) [TODO-VERIFY exact correspondence].
+                  direction is only neutral. This is our own relaxation of the strict rule.
         """
         if mode == "strict":
             return a_to_b == self.ENT and b_to_a == self.ENT

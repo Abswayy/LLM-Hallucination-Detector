@@ -95,6 +95,9 @@ def build_macros(M: dict, M7: dict | None) -> dict[str, str]:
                 mac[f"{p}Ms{STEM[k]}"] = ms(c["seconds_total"])
                 mac[f"{p}Over{STEM[k]}"] = ms(c["seconds_overhead"])
                 mac[f"{p}Fp{STEM[k]}"] = f"{c['llm_forward_passes'] + c['nli_forward_passes']:.1f}"
+        cc = costs_for(M, ds)
+        if "semantic_entropy_10" in cc:  # how many times more added latency SE-10 costs than the probe
+            mac[f"{p}Speedup"] = f"{cc['semantic_entropy_10']['seconds_overhead'] / cc['probe_answer']['seconds_overhead']:.0f}"
         best = M["probes"][ds]["best"]
         for pos, stem in (("answer", "ProbeAns"), ("prompt", "ProbePrompt")):
             mac[f"{p}Test{stem}"] = f3(best[pos]["test"]["auroc"])

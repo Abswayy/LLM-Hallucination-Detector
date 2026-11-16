@@ -1,31 +1,68 @@
 <!-- AUTO-GENERATED from README.template.md by src/report.py. Edit the template. -->
-# Cheap Hallucination Detection with Hidden-State Probes
+# LLM Hallucination Detector
 
-Can a single linear probe on an LLM's hidden state catch hallucinated answers as well as
-expensive sampling-based methods like semantic entropy? We test this on
-**Qwen2.5-3B-Instruct** (plus a 4-bit 7B replication) on TriviaQA and PubMedQA, running
-everything on one 12 GB laptop GPU. We measure accuracy and real cost, include the
-controls these comparisons often skip, and report what doesn't work as well as what does.
+**Catching an LLM's wrong answers from a single hidden state: more accurate than semantic entropy, with ~434× less added latency.**
 
-## Headline result
+A linear probe reads one internal activation of the model and predicts whether the answer
+it just gave is wrong. On Qwen2.5 (3B, and a 4-bit 7B replication), across 3,000 trivia
+and biomedical questions, it beats semantic entropy, a leading sampling-based method, on accuracy at a
+fraction of the cost. Everything runs on a single 12 GB laptop GPU.
 
-On the same 500 questions per dataset, a logistic-regression probe on the **last answer
-token** detects incorrect answers with **AUROC 0.881** (TriviaQA) and
-**0.839** (PubMedQA). That **beats semantic entropy with 10 samples**
-(0.833 / 0.701; paired-bootstrap Δ +0.048 [+0.016, +0.085] and
-+0.138 [+0.090, +0.186]) while adding **0.8 ms** per question instead of
-**337.0 ms** (TriviaQA). A probe that reads only the **prompt**, before any token
-is generated, reaches **0.821**, statistically tied with 10-sample semantic entropy
-(Δ -0.012 [-0.049, +0.027]) at 6.8 ms instead of 361.1 ms.
+📄 **Paper:** [`paper/main.pdf`](paper/main.pdf) (4 pages) · 🧪 **Every number here is generated from** [`results/metrics.json`](results/metrics.json)
 
-![Cost vs AUROC](figures/fig3_cost_vs_auroc.png)
+---
 
-## Results (Qwen2.5-3B-Instruct, 500 questions per dataset)
+## Highlights
 
-AUROC for detecting incorrect answers, with 95% bootstrap CIs. **+ms** is the measured
-latency added on top of generating the answer (RTX 4080 Laptop GPU, same batching for
-every method). The prompt-only probe shows its full cost in parentheses, because it runs
-*before* generation. Probe scores are out-of-fold (5-fold cross-fitting by question).
+| | TriviaQA | PubMedQA |
+|---|---|---|
+| **Hidden-state probe** (ours), AUROC | **0.881** | **0.839** |
+| Semantic entropy, 10 samples, AUROC | 0.833 | 0.701 |
+| Difference (paired bootstrap, 95% CI) | +0.048 [+0.016, +0.085] | +0.138 [+0.090, +0.186] |
+| Added latency per question: probe vs. semantic entropy | **0.8 ms** vs. 337.0 ms | **1.8 ms** vs. 610.9 ms |
+
+- 🎯 **More accurate and far cheaper.** The probe beats semantic entropy and
+  self-consistency (both with 10 samples), and every difference is statistically
+  significant.
+- ⏱️ **Predicts errors before the model answers.** From the prompt alone, the probe reaches
+  **0.821** on TriviaQA, statistically tied with 10-sample semantic entropy, at
+  6.8 ms instead of 361.1 ms.
+- 📈 **Holds at 7B.** With Qwen2.5-7B (4-bit), the probe scores 0.889 vs. 0.830
+  for semantic entropy on TriviaQA (Δ +0.059 [+0.027, +0.093]).
+- 🧯 **Practical payoff.** If the model answers only the half of TriviaQA questions the probe
+  is most confident about, accuracy rises from 43.8% to 72.8%.
+
+![Detection quality vs. cost](figures/fig3_cost_vs_auroc.png)
+
+---
+
+## How it works
+
+```mermaid
+flowchart LR
+    Q[Question] --> LLM[LLM generates<br/>one answer]
+    LLM -->|hidden state of the<br/>last answer token| P[Linear probe<br/>2,048 weights]
+    P --> R[Risk that the<br/>answer is wrong]
+    Q -.->|prompt only, before answering| LLM2[LLM reads<br/>the question] -.->|hidden state of the<br/>last prompt token| P2[Prompt-only probe] -.-> R2[Risk that the<br/>answer will be wrong]
+```
+
+**Semantic entropy**, the baseline, asks the model the same question 10 more times, groups
+the answers by meaning with an NLI model (DeBERTa-large-MNLI), and scores disagreement.
+That is accurate but costs about 10 extra generations plus NLI calls per query.
+
+**The probe** is a logistic regression on the model's residual stream at one layer. Because
+it is linear, it can only work if the model already represents "I'm probably wrong"
+internally. It costs one dot product (microseconds) on an activation the model computes
+anyway.
+
+---
+
+## Results
+
+AUROC for detecting incorrect answers on the **same 500 questions per dataset**, with 95%
+bootstrap CIs (Qwen2.5-3B-Instruct). **+ms** is measured latency added on top of
+generating the answer (RTX 4080 Laptop GPU, identical batching for every method). The
+prompt-only probe shows its full cost in parentheses, since it runs *before* generation.
 
 | Method | TriviaQA AUROC [95% CI] | +ms | PubMedQA AUROC [95% CI] | +ms |
 |---|---|---|---|---|
@@ -41,50 +78,9 @@ every method). The prompt-only probe shows its full cost in parentheses, because
 
 Model accuracy: TriviaQA 42.6% (n=2,000), PubMedQA 61.6% (n=1,000).
 
-![AUROC comparison](figures/fig1_auroc_comparison.png)
+<p align="center"><img src="figures/fig1_auroc_comparison.png" width="90%"></p>
 
-## What else we found
-
-**It is not a lucky split.** Over 5 random 70/15/15 splits (layer and regularization
-chosen on validation only), the answer-token probe scores 0.896 ± 0.011 on TriviaQA
-(token log-prob: 0.840 ± 0.015). A 200-permutation shuffled-label control averages
-0.505 (TriviaQA) and 0.497 (PubMedQA): no leakage.
-
-**PubMedQA needs an answer-identity control.** Errors depend heavily on which word the
-model says (it is usually wrong when it says "maybe"). Predicting errors from the
-yes/no/maybe word alone already gives 0.753. The probes beat this control
-(Δ +0.085 [+0.053, +0.117]). The extra signal comes mostly from
-spotting wrong "no" answers: within "no" answers the prompt probe scores 0.789.
-
-**Accuracy probes vs. Semantic Entropy Probes (Kossen et al., 2024)**, trained on the same
-500 questions. In-domain, accuracy probes match or beat SE probes. Out of domain the
-result depends on direction, consistent in part with Kossen et al.'s claim that SE probes
-generalize better.
-
-| Setting | Token | Accuracy probe | SEP | Δ (accuracy − SEP) [95% CI] |
-|---|---|---|---|---|
-| TriviaQA (in-domain) | prompt | 0.772 | 0.759 | +0.013 [-0.021, +0.052] |
-| TriviaQA (in-domain) | answer | 0.821 | 0.784 | +0.037 [-0.003, +0.079] |
-| PubMedQA (in-domain) | prompt | 0.793 | 0.752 | +0.041 [+0.007, +0.075] |
-| PubMedQA (in-domain) | answer | 0.842 | 0.754 | +0.088 [+0.046, +0.130] |
-| TriviaQA → PubMedQA | prompt | 0.533 | 0.599 | -0.066 [-0.123, -0.010] |
-| TriviaQA → PubMedQA | answer | 0.743 | 0.642 | +0.101 [+0.063, +0.142] |
-| PubMedQA → TriviaQA | prompt | 0.469 | 0.473 | -0.004 [-0.066, +0.059] |
-| PubMedQA → TriviaQA | answer | 0.612 | 0.721 | -0.108 [-0.174, -0.040] |
-
-**Cross-domain transfer is fragile.** A probe trained on TriviaQA and tested on PubMedQA
-ranges from 0.573 to 0.766 AUROC depending on
-the layer. The layer that is best in-domain (layer 24: 0.611) is not the one
-that transfers best (layer 28: 0.766).
-
-| Train → test | Prompt-only probe | Answer-token probe |
-|---|---|---|
-| TriviaQA → TriviaQA (in-domain) | 0.837 [0.794, 0.882] | 0.909 [0.875, 0.938] |
-| PubMedQA → PubMedQA (in-domain) | 0.827 [0.751, 0.896] | 0.828 [0.747, 0.898] |
-| TriviaQA → PubMedQA | 0.741 [0.653, 0.823] | 0.540 [0.448, 0.637] |
-| PubMedQA → TriviaQA | 0.496 [0.429, 0.561] | 0.577 [0.515, 0.641] |
-
-**7B replication (4-bit NF4).** Same questions, prompts and protocol:
+**3B vs. 7B (4-bit NF4).** Same questions, prompts and protocol:
 
 | | TriviaQA 3B | TriviaQA 7B (4-bit) | PubMedQA 3B | PubMedQA 7B (4-bit) |
 |---|---|---|---|---|
@@ -95,61 +91,92 @@ that transfers best (layer 28: 0.766).
 | Self-consistency, 10 samples | 0.845 | 0.840 | 0.698 | 0.616 |
 | Semantic entropy, 10 samples | 0.833 | 0.830 | 0.701 | 0.615 |
 
-## What does *not* work, or needs care
+---
 
-- **Transfer.** Probes need in-domain labels. Choosing the layer on source-domain data
-  does not reliably find a layer that transfers.
-- **Prompt-only on PubMedQA.** The last prompt token's final layer *produces* the
-  one-word answer, so "before answering" there means "before the answer is emitted". The
-  long abstract also makes the time saving small.
-- **Token log-prob on 7B PubMedQA** is close to chance: the 7B model hedges with "maybe"
-  and is about as confident when hedging as when not.
-- **Short answers only.** Semantic entropy was designed for, and may do better on,
-  longer generations.
+## Rigor: why these numbers can be trusted
+
+- **No leakage.** Train, validation and test splits are disjoint by question (asserted in
+  code). Layer and regularization are chosen on validation only. A 200-permutation
+  shuffled-label control averages **0.505** (TriviaQA) and **0.497**
+  (PubMedQA), i.e. chance.
+- **Not a lucky split.** Over 5 random splits the probe scores 0.896 ± 0.011 on TriviaQA
+  (token log-prob: 0.840 ± 0.015).
+- **Fair comparison.** All methods are scored on the same questions. Probe scores are
+  out-of-fold via 5-fold cross-fitting. Differences use a paired bootstrap.
+- **Strong baselines.** Semantic entropy was strengthened to 10 samples, and a lenient
+  clustering variant was tested too. Costs are measured wall-clock, not estimated.
+- **Confounds controlled.** On PubMedQA (yes/no/maybe), *which word* the model says
+  predicts errors well on its own (0.753 AUROC). The probe beats this
+  answer-identity control (Δ +0.085 [+0.053, +0.117]).
+
+<p align="center"><img src="figures/fig4_layer_sweep.png" width="90%"></p>
+
+---
+
+## What doesn't work (reported honestly)
+
+- **Cross-domain transfer is fragile.** A probe trained on TriviaQA and tested on PubMedQA
+  ranges from 0.573 to 0.766 AUROC depending on the
+  layer. The best in-domain layer (layer 24: 0.611) is not the one that transfers
+  best (layer 28: 0.766). Probes need in-domain labels.
+- **Token probability can fail completely.** On PubMedQA, the 7B model hedges with "maybe"
+  and is about as confident when hedging as when not, so token log-prob drops to
+  0.519 (near chance).
+- **"Before answering" has limits.** For PubMedQA's one-word answers, the last prompt token
+  already *produces* the answer, so the prompt-only probe there predicts before the answer
+  is emitted, not before it is decided.
+- **Semantic Entropy Probes** ([Kossen et al., 2024](https://arxiv.org/abs/2406.15927)) were
+  compared at matched training data. Our accuracy probes match or beat them in-domain;
+  out of domain the winner depends on direction ([`results/tables.md`](results/tables.md)).
+
+---
 
 ## Reproduce
 
 ```bash
-python -m venv .venv && .venv/Scripts/activate        # Windows; use .venv/bin/activate on Linux
+python -m venv .venv && .venv/Scripts/activate        # Windows; use .venv/bin/activate on Linux/macOS
 pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cu126
 pip install -r requirements.txt
-bash scripts/run_all.sh                               # 3B pipeline, every step cached and resumable
-HP_CONFIG=config_7b.yaml bash scripts/run_all.sh      # 7B (4-bit) replication into results_7b/
-python -m src.report                                  # regenerates paper/numbers.tex, tables, this README
+
+HP_CONFIG=config_7b.yaml bash scripts/run_all.sh      # optional: 7B (4-bit) replication -> results_7b/
+bash scripts/run_all.sh                               # 3B pipeline -> results/, figures/, paper/, README.md
 ```
 
-Every number in this README and in `paper/main.tex` is generated from
-`results/metrics.json` by `src/report.py` (this file is rendered from
-`README.template.md`).
+Each step caches its outputs and resumes after a crash. Hardware: RTX 4080 Laptop GPU
+(12 GB), Python 3.12, PyTorch 2.14 (CUDA 12.6). Generation, sampling and NLI took about
+**15 GPU-minutes** for 3B (peak 9.5 GB VRAM) and **26 GPU-minutes**
+for 7B in 4-bit (peak 9.3 GB). Probe training runs on CPU.
 
-**Hardware and runtime.** RTX 4080 Laptop GPU (12 GB), Windows 11, Python 3.12, PyTorch
-2.14 (CUDA 12.6). Generation, sampling and NLI took about **15 GPU-minutes**
-for 3B (peak 9.5 GB) and **26 GPU-minutes** for 7B in 4-bit (peak
-9.3 GB). Probe training runs on CPU.
-
-## Repository layout
+<details>
+<summary><b>Repository layout</b></summary>
 
 ```
 config.yaml / config_7b.yaml   every setting (seed 42)
 src/data.py         dataset sampling + prompt formatting
-src/generate.py     greedy answers, per-token log-probs, hidden states, sampled answers
+src/generate.py     greedy answers, token log-probs, hidden states, sampled answers
 src/label.py        correctness labels (SQuAD-normalized alias match; yes/no/maybe parsing)
 src/baselines.py    token log-prob, self-consistency, semantic entropy (5/10 samples, strict/lenient)
-src/probe.py        probes, layer sweep, prompt-only, transfer, shuffled control, SEP comparison
+src/probe.py        probes, layer sweep, prompt-only, transfer, shuffled control, SE-probe comparison
 src/timing.py       clean per-stage latency on an idle GPU
 src/evaluate.py     AUROC + bootstrap CIs, abstention curves, cost accounting
 src/plots.py        figures (PDF + PNG)
-src/report.py       paper macros, tables and this README from metrics.json
-NOTES.md            plain-English explanation of every step and decision
-paper/main.tex      4-page workshop-style write-up
+src/report.py       paper numbers/tables and this README, generated from metrics.json
+NOTES.md            plain-English explanation of every step and design decision
+paper/main.tex      4-page workshop-style write-up (compiled: paper/main.pdf)
 ```
+</details>
 
 ## Limitations
 
-One model family; two short-answer datasets. Labels come from string matching: noisy
-TriviaQA aliases cause some false positives and formatting differences some false
-negatives (not quantified; see `NOTES.md`). PubMedQA test splits are small
-(150 questions), so its CIs are wide. The PubMedQA prompt was adjusted once, using
-only the answer distribution on 100 questions, before any labels existed. The 7B model is
-4-bit quantized, which may perturb hidden states. Full discussion: `NOTES.md` and the
-paper's Limitations section.
+One model family (Qwen2.5) and two short-answer datasets; semantic entropy was designed
+for, and may do better on, longer generations. Correctness labels come from string
+matching: noisy TriviaQA aliases cause some false positives, and formatting differences
+some false negatives. PubMedQA test splits are small (150 questions), so its CIs are
+wide. The PubMedQA prompt was adjusted once, using only the answer distribution on
+100 questions, before any correctness labels existed. The 7B model is 4-bit
+quantized. Details: [`NOTES.md`](NOTES.md) and the paper's Limitations section.
+
+## Built with
+
+PyTorch · Hugging Face Transformers & Datasets · bitsandbytes · scikit-learn · matplotlib ·
+Qwen2.5-3B/7B-Instruct · DeBERTa-large-MNLI · TriviaQA · PubMedQA

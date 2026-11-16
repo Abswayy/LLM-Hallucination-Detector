@@ -278,9 +278,8 @@ SEP_TARGET = "semantic_entropy_10"
 
 def binarize_se(se_train: np.ndarray) -> float:
     """Threshold that splits SE values into two groups with minimal total within-group
-    squared error (a 1-D two-means split). Following Kossen et al. (2024), who binarize
-    SE before training a probe [TODO-VERIFY their exact threshold rule]. Computed on
-    training questions only."""
+    squared error (a 1-D two-means split), the "best split" binarization described for
+    Semantic Entropy Probes (Kossen et al., 2024). Computed on training questions only."""
     vals = np.unique(se_train)
     if len(vals) == 1:
         return float(vals[0])
