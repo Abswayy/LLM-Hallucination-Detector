@@ -13,3 +13,7 @@ $PY -m src.generate --dataset trivia_qa pubmed_qa
 
 # Phase 2: correctness labels (+ prints 30 examples for manual review)
 $PY -m src.label | tee results/label_review.txt
+
+# Phase 3: baselines (token prob, self-consistency, semantic entropy), then clean timing
+$PY -m src.baselines
+$PY -m src.timing

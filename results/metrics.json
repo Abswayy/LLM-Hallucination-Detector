@@ -52,5 +52,332 @@
         "maybe": 0.1702127659574468
       }
     }
+  },
+  "costs": {
+    "trivia_qa": {
+      "nli_clustering": {
+        "seconds_total": 40.77778910001507,
+        "seconds_per_question": 0.08155557820003013,
+        "nli_calls_per_question": 9.028,
+        "n_questions": 500,
+        "model": "microsoft/deberta-large-mnli",
+        "peak_vram_gb": 1.770207405090332
+      },
+      "llm": {
+        "prefill": {
+          "seconds_per_question": 0.006805640999926254,
+          "repeats_seconds_per_question": [
+            0.006788800199981779,
+            0.006805640999926254,
+            0.006843040200066753
+          ]
+        },
+        "greedy": {
+          "seconds_per_question": 0.02414765359996818,
+          "repeats_seconds_per_question": [
+            0.02414765359996818,
+            0.02503981340001337,
+            0.023702696600113995
+          ]
+        },
+        "greedy_hooks": {
+          "seconds_per_question": 0.024919197999988683,
+          "repeats_seconds_per_question": [
+            0.024694311399944126,
+            0.024919197999988683,
+            0.026180935999960638
+          ]
+        },
+        "sample5": {
+          "seconds_per_question": 0.08763848159997724,
+          "repeats_seconds_per_question": [
+            0.08763848159997724,
+            0.08303642919997219,
+            0.09319130320008844
+          ]
+        },
+        "forward_passes_per_question": {
+          "prefill": 1.0,
+          "greedy": 3.91,
+          "sample5": 19.64
+        },
+        "n_questions": 500,
+        "batch_sizes": {
+          "greedy_and_prefill": 16,
+          "sample5_prompts": 8
+        }
+      },
+      "methods_baselines": {
+        "neg_mean_logprob": {
+          "generations": 1,
+          "llm_forward_passes": 3.91,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.02414765359996818,
+          "seconds_overhead": 0.0
+        },
+        "neg_min_logprob": {
+          "generations": 1,
+          "llm_forward_passes": 3.91,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.02414765359996818,
+          "seconds_overhead": 0.0
+        },
+        "self_consistency": {
+          "generations": 6,
+          "llm_forward_passes": 23.55,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.11178613519994542,
+          "seconds_overhead": 0.08763848159997724
+        },
+        "semantic_entropy": {
+          "generations": 6,
+          "llm_forward_passes": 23.55,
+          "nli_forward_passes": 9.028,
+          "seconds_total": 0.19334171339997555,
+          "seconds_overhead": 0.16919405980000737
+        }
+      }
+    },
+    "pubmed_qa": {
+      "nli_clustering": {
+        "seconds_total": 7.901764799957164,
+        "seconds_per_question": 0.015803529599914327,
+        "nli_calls_per_question": 0.852,
+        "n_questions": 500,
+        "model": "microsoft/deberta-large-mnli",
+        "peak_vram_gb": 1.770207405090332
+      },
+      "llm": {
+        "prefill": {
+          "seconds_per_question": 0.05763188859994989,
+          "repeats_seconds_per_question": [
+            0.051696987799950876,
+            0.05763188859994989,
+            0.05969256460003089
+          ]
+        },
+        "greedy": {
+          "seconds_per_question": 0.06344176260009408,
+          "repeats_seconds_per_question": [
+            0.06325362860003952,
+            0.06344176260009408,
+            0.06423528719996102
+          ]
+        },
+        "greedy_hooks": {
+          "seconds_per_question": 0.0652480535999639,
+          "repeats_seconds_per_question": [
+            0.06394397600006778,
+            0.0652480535999639,
+            0.06568290819996037
+          ]
+        },
+        "sample5": {
+          "seconds_per_question": 0.31149052679992745,
+          "repeats_seconds_per_question": [
+            0.31149052679992745,
+            0.30927353460004087,
+            0.3155792870000005
+          ]
+        },
+        "forward_passes_per_question": {
+          "prefill": 1.0,
+          "greedy": 2.0,
+          "sample5": 10.0
+        },
+        "n_questions": 500,
+        "batch_sizes": {
+          "greedy_and_prefill": 16,
+          "sample5_prompts": 8
+        }
+      },
+      "methods_baselines": {
+        "neg_mean_logprob": {
+          "generations": 1,
+          "llm_forward_passes": 2.0,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.06344176260009408,
+          "seconds_overhead": 0.0
+        },
+        "neg_min_logprob": {
+          "generations": 1,
+          "llm_forward_passes": 2.0,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.06344176260009408,
+          "seconds_overhead": 0.0
+        },
+        "answer_identity": {
+          "generations": 1,
+          "llm_forward_passes": 2.0,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.06344176260009408,
+          "seconds_overhead": 0.0
+        },
+        "self_consistency": {
+          "generations": 6,
+          "llm_forward_passes": 12.0,
+          "nli_forward_passes": 0.0,
+          "seconds_total": 0.37493228940002155,
+          "seconds_overhead": 0.31149052679992745
+        },
+        "semantic_entropy": {
+          "generations": 6,
+          "llm_forward_passes": 12.0,
+          "nli_forward_passes": 0.852,
+          "seconds_total": 0.39073581899993587,
+          "seconds_overhead": 0.32729405639984177
+        }
+      }
+    }
+  },
+  "baselines": {
+    "trivia_qa": {
+      "full": {
+        "neg_mean_logprob": {
+          "auroc": 0.8427918212229711,
+          "ci95": [
+            0.8253651455286796,
+            0.8597273226370962
+          ],
+          "n": 2000,
+          "n_incorrect": 1149
+        },
+        "neg_min_logprob": {
+          "auroc": 0.8372380213111283,
+          "ci95": [
+            0.8197549848262218,
+            0.8539524718407576
+          ],
+          "n": 2000,
+          "n_incorrect": 1149
+        }
+      },
+      "sample_subset": {
+        "neg_mean_logprob": {
+          "auroc": 0.8367051788296852,
+          "ci95": [
+            0.8021142170592581,
+            0.8702405490632005
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
+        "neg_min_logprob": {
+          "auroc": 0.8333577081200538,
+          "ci95": [
+            0.7967331946595264,
+            0.8678684515321577
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
+        "self_consistency": {
+          "auroc": 0.8232990461333463,
+          "ci95": [
+            0.786938103516572,
+            0.8583153432242208
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        },
+        "semantic_entropy": {
+          "auroc": 0.8173759729602367,
+          "ci95": [
+            0.7818504307224582,
+            0.8539994256116227
+          ],
+          "n": 500,
+          "n_incorrect": 281
+        }
+      },
+      "semantic_entropy_stats": {
+        "mean_n_clusters": 2.822,
+        "frac_single_cluster": 0.368,
+        "mean_nli_calls": 9.028
+      }
+    },
+    "pubmed_qa": {
+      "full": {
+        "neg_mean_logprob": {
+          "auroc": 0.7066888189935064,
+          "ci95": [
+            0.6745913757970695,
+            0.7390985106789821
+          ],
+          "n": 1000,
+          "n_incorrect": 384
+        },
+        "neg_min_logprob": {
+          "auroc": 0.7066888189935064,
+          "ci95": [
+            0.6745913757970695,
+            0.7390985106789821
+          ],
+          "n": 1000,
+          "n_incorrect": 384
+        },
+        "answer_identity": {
+          "auroc": 0.7443837087391775,
+          "ci95": [
+            0.7135636713077127,
+            0.7752430147734419
+          ],
+          "n": 1000,
+          "n_incorrect": 384
+        }
+      },
+      "sample_subset": {
+        "neg_mean_logprob": {
+          "auroc": 0.7309923612174415,
+          "ci95": [
+            0.6848847867024039,
+            0.7747747488768391
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "neg_min_logprob": {
+          "auroc": 0.7309923612174415,
+          "ci95": [
+            0.6848847867024039,
+            0.7747747488768391
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "answer_identity": {
+          "auroc": 0.7534408547270285,
+          "ci95": [
+            0.7076244416504321,
+            0.79444172472151
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "self_consistency": {
+          "auroc": 0.668580615525953,
+          "ci95": [
+            0.6236338586566624,
+            0.7121305425520033
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        },
+        "semantic_entropy": {
+          "auroc": 0.6708518348389729,
+          "ci95": [
+            0.6242796141413195,
+            0.7146685511011655
+          ],
+          "n": 500,
+          "n_incorrect": 189
+        }
+      },
+      "semantic_entropy_stats": {
+        "mean_n_clusters": 1.394,
+        "frac_single_cluster": 0.638,
+        "mean_nli_calls": 0.852
+      }
+    }
   }
 }

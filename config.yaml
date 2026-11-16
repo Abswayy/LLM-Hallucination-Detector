@@ -41,3 +41,6 @@ smoke_test_n: 20
 paths:
   results: results
   figures: figures
+
+timing:
+  repeats: 3               # median over repeats for the cost comparison

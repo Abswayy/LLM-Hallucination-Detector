@@ -213,3 +213,106 @@ adds variance; it does not favour any one method.
 
 PubMedQA labels are exact (a closed set of three words), so the only "noise" is
 disagreement with the expert annotators.
+
+---
+
+## Checkpoint 3 — Baselines
+
+### What the code does (`src/baselines.py`, `src/timing.py`)
+
+Every method produces one number per question; **higher means "more likely wrong"**.
+We then measure **AUROC**: the probability that a randomly chosen wrong answer gets a
+higher score than a randomly chosen right answer. 0.5 is a coin flip; 1.0 is perfect.
+95% CIs come from 1,000 bootstrap resamples. The same resamples are used for every
+method (a "paired" bootstrap), so methods are compared on identical data.
+
+1. **Token probability (mean / min).** While writing its answer, the model assigns a
+   probability to each token it picks. A hesitant model gives low probabilities. The
+   score is the negated mean (or minimum) log-probability of the answer tokens. It is
+   free: the numbers come out of the normal answer generation.
+2. **Self-consistency.** Ask the same question 5 more times with randomness on. If the
+   model keeps giving the greedy answer it is probably confident. The score is
+   1 − (fraction of the 5 samples that agree with the greedy answer). "Agree" uses the
+   labeling normalization: equal, or one contains the other as whole words (so "Niger"
+   agrees with "Niger River"). For PubMedQA, it means the same yes/no/maybe word.
+3. **Semantic entropy** (explained below).
+4. **Answer-identity control (PubMedQA only).** A deliberately "dumb" score: the error
+   rate of the word the model said (yes/no/maybe), estimated on other folds (5-fold
+   cross-fitting) so each question's own label is never used to score it. It is not a
+   real detector. It shows how much of PubMedQA's errors can be predicted just from
+   *which* answer was given.
+
+### Semantic entropy in plain words
+
+We collect 6 answers to the same question (the greedy one plus 5 samples) and group
+those that *mean the same thing*. Two answers are put in the same group if an NLI model
+(DeBERTa-large-MNLI), given the question, judges that each one implies the other. So
+"Niger" and "Niger River" share a group, but "Niger" and "Senegal River" do not. The
+score is the entropy of the group sizes: all six answers in one group gives 0 (the
+model consistently means the same thing), while six different meanings gives the
+maximum, log 6 ≈ 1.79. Unlike plain self-consistency, it does not penalize the model for
+phrasing the same answer differently.
+
+### Results (from `results/metrics.json`: `baselines`, `costs`)
+
+AUROC for predicting "incorrect" on the 500-question subset where every method is
+available. Costs are per question, measured on an idle GPU with the same batch sizes as
+generation (16 for greedy; 8 prompts x 5 samples), median of 3 repeats. "Overhead" is
+the cost on top of producing the greedy answer, which a deployed system pays anyway.
+
+**TriviaQA** (500 questions, 281 incorrect)
+
+| Method | AUROC [95% CI] | LLM generations | LLM forward passes | NLI passes | Total ms | Overhead ms |
+|---|---|---|---|---|---|---|
+| −mean token log-prob | 0.837 [0.802, 0.870] | 1 | 3.91 | 0 | 24.1 | 0 |
+| −min token log-prob | 0.833 [0.797, 0.868] | 1 | 3.91 | 0 | 24.1 | 0 |
+| Self-consistency | 0.823 [0.787, 0.858] | 6 | 23.55 | 0 | 111.8 | 87.6 |
+| Semantic entropy | 0.817 [0.782, 0.854] | 6 | 23.55 | 9.03 | 193.3 | 169.2 |
+
+On the full 2,000 questions: −mean log-prob 0.843 [0.825, 0.860], −min 0.837 [0.820, 0.854].
+
+**PubMedQA** (500 questions, 189 incorrect)
+
+| Method | AUROC [95% CI] | LLM generations | LLM forward passes | NLI passes | Total ms | Overhead ms |
+|---|---|---|---|---|---|---|
+| −mean token log-prob | 0.731 [0.685, 0.775] | 1 | 2.00 | 0 | 63.4 | 0 |
+| −min token log-prob | 0.731 [0.685, 0.775] | 1 | 2.00 | 0 | 63.4 | 0 |
+| Answer identity (control) | 0.753 [0.708, 0.794] | 1 | 2.00 | 0 | 63.4 | 0 |
+| Self-consistency | 0.669 [0.624, 0.712] | 6 | 12.00 | 0 | 374.9 | 311.5 |
+| Semantic entropy | 0.671 [0.624, 0.715] | 6 | 12.00 | 0.85 | 390.7 | 327.3 |
+
+On the full 1,000 questions: −mean log-prob 0.707 [0.675, 0.739], answer identity
+0.744 [0.714, 0.775].
+
+### What to take from this
+
+- **All methods beat chance (> 0.5)**, and none falls outside the 0.55–0.95 range that
+  would trigger an investigation.
+- **The expensive methods did not beat token probability here.** On TriviaQA the four
+  methods are within a few points of each other with overlapping CIs; on PubMedQA the
+  sampling methods are clearly *worse* than token probability. Plausible reasons:
+  answers are very short (often 1–4 tokens), where token probability already captures
+  most of the uncertainty, and we use only 5 samples (Farquhar et al. used 10). For
+  PubMedQA there are only three possible answers, so 6 answers carry little information
+  beyond what the single token probability already says.
+- **PubMedQA's answer-identity control beats every uncertainty method.** "The model said
+  maybe" predicts errors better than any of them, so PubMedQA AUROCs largely reflect
+  which word was said. Phase 4's probes must be compared against this control.
+- **Mean = min on PubMedQA** because every answer is one token.
+- **Semantic-entropy clustering is strict.** DeBERTa puts "Shakespeare" and
+  "William Shakespeare" in different groups (the short answer does not strictly entail
+  the long one). This is the standard method (Kuhn et al.); we note it as a limitation.
+  On TriviaQA it used 9.0 NLI calls and 2.8 clusters per question on average; 36.8% of
+  questions had a single cluster.
+- **Costs.** The sampling methods cost 4–6x the greedy answer in wall-clock time and
+  6x in generations. On PubMedQA, sampling is especially expensive relative to greedy
+  decoding: the long abstract prompt is processed for every sample, and we do not share
+  its cache across samples.
+
+### Implementation notes
+
+- Answers identical after normalization are merged without calling the NLI model; only
+  genuinely different strings cost NLI passes, and those calls are counted exactly.
+- `src/timing.py` frees cached GPU memory between stages; without that, the largest
+  PubMedQA sampling batch ran out of memory because of fragmentation (it fits on its
+  own, as in Phase 1).

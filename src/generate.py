@@ -306,6 +306,16 @@ def run_stage(stage, items, model, tok, eos_ids, capture, cfg, out_dir: Path) ->
     }
 
 
+def build_items(examples: list[dict], tok, cfg: dict) -> list[dict]:
+    """Chat-formatted prompts, sorted longest first (less padding; any OOM shows up early)."""
+    items = []
+    for e in examples:
+        prompt, trunc = build_prompt(e, tok, cfg)
+        n_tok = len(tok(prompt, add_special_tokens=False)["input_ids"])
+        items.append({"id": e["id"], "prompt": prompt, "truncated": trunc, "n_tok": n_tok})
+    return sorted(items, key=lambda it: -it["n_tok"])  # stable sort => deterministic
+
+
 def process_dataset(name, cfg, model, tok, eos_ids, layer_ids, limit=None) -> dict:
     examples = load_examples(name, cfg)
     sub_ids = set(sample_subset_ids(examples, cfg))
@@ -317,14 +327,7 @@ def process_dataset(name, cfg, model, tok, eos_ids, layer_ids, limit=None) -> di
         out_dir = results_dir(cfg) / name
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    items = []
-    for e in examples:
-        prompt, trunc = build_prompt(e, tok, cfg)
-        n_tok = len(tok(prompt, add_special_tokens=False)["input_ids"])
-        items.append({"id": e["id"], "prompt": prompt, "truncated": trunc, "n_tok": n_tok})
-    # Longest prompts first: less padding per batch, and any OOM shows up immediately.
-    order = sorted(range(len(items)), key=lambda i: -items[i]["n_tok"])
-    items_sorted = [items[i] for i in order]
+    items_sorted = build_items(examples, tok, cfg)
 
     capture = HiddenCapture(model, layer_ids)
     g = run_stage("greedy", items_sorted, model, tok, eos_ids, capture, cfg, out_dir)
