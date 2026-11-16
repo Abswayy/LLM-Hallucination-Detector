@@ -50,6 +50,20 @@ def read_jsonl(path: Path) -> list[dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
+def update_metrics(cfg: dict, keys: list[str], value) -> None:
+    """Set metrics.json[keys[0]][keys[1]]... = value, keeping everything else.
+
+    results/metrics.json is the single source for every number in the README and paper.
+    """
+    path = results_dir(cfg) / "metrics.json"
+    metrics = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    node = metrics
+    for k in keys[:-1]:
+        node = node.setdefault(k, {})
+    node[keys[-1]] = value
+    write_json(path, metrics)
+
+
 def write_json(path: Path, obj) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")

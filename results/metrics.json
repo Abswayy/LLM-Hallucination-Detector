@@ -1,0 +1,56 @@
+{
+  "labeling": {
+    "trivia_qa": {
+      "n": 2000,
+      "n_correct": 851,
+      "accuracy": 0.4255,
+      "accuracy_ci95": [
+        0.4044875,
+        0.4465
+      ],
+      "accuracy_sample_subset": 0.438,
+      "n_sample_subset": 500,
+      "n_flagged": 101,
+      "flag_counts": {
+        "high_overlap_but_no_match": 77,
+        "answer_is_part_of_alias": 31,
+        "long_answer_contains_alias": 17,
+        "short_or_numeric_alias_match": 5
+      },
+      "match_counts": {
+        "exact": 784,
+        "none": 1149,
+        "contains": 67
+      }
+    },
+    "pubmed_qa": {
+      "n": 1000,
+      "n_correct": 616,
+      "accuracy": 0.616,
+      "accuracy_ci95": [
+        0.5869749999999999,
+        0.644025
+      ],
+      "accuracy_sample_subset": 0.622,
+      "n_sample_subset": 500,
+      "n_flagged": 0,
+      "flag_counts": {},
+      "n_unparseable": 0,
+      "parsed_counts": {
+        "yes": 334,
+        "maybe": 188,
+        "no": 478
+      },
+      "gold_counts": {
+        "yes": 552,
+        "no": 338,
+        "maybe": 110
+      },
+      "accuracy_by_parsed": {
+        "yes": 0.8802395209580839,
+        "no": 0.606694560669456,
+        "maybe": 0.1702127659574468
+      }
+    }
+  }
+}

@@ -143,3 +143,73 @@ The v1 outputs are kept in `results/archive/pubmed_qa_prompt_v1/` for the record
 **Methodological caveat.** The pilot questions are also part of the evaluation set.
 Because selection used only the answer distribution, not correctness, we consider the
 leakage negligible, but it is mentioned in the paper's limitations.
+
+---
+
+## Checkpoint 2 — Labeling
+
+### What the code does (`src/label.py`)
+
+Each greedy answer gets a label, *correct* or *incorrect*. Later phases try to predict
+"incorrect", so `incorrect = 1` is the target.
+
+- **TriviaQA.** Both the model's answer and each gold alias are *normalized*: lowercase,
+  punctuation removed, the words "a/an/the" removed, extra spaces collapsed. So
+  "The U.S. Virgin Islands." becomes "us virgin islands". The answer is correct if
+  (a) it equals some normalized alias, or (b) some alias appears *inside* the answer as
+  whole words ("Sun Records" contains "sun"). Whole-word matching stops "11" from matching
+  "110".
+- **PubMedQA.** The answer is parsed into yes/no/maybe: use the first word if it is one
+  of the three; otherwise use the only label word that appears; otherwise
+  "unparseable", which counts as incorrect. **0/1,000 answers were unparseable**; every
+  answer was a bare label word (sometimes capitalized).
+
+### Results (from `results/metrics.json` → `labeling`)
+
+| | TriviaQA | PubMedQA |
+|---|---|---|
+| Accuracy | 42.6% (851/2,000) | 61.6% (616/1,000) |
+| 95% bootstrap CI | 40.4–44.7% | 58.7–64.4% |
+| Accuracy on the 500 sampled questions | 43.8% | 62.2% |
+| How matched | 784 exact, 67 containment | 1,000 parsed from first word |
+
+TriviaQA accuracy is inside the expected 35–55% range for a 3B model.
+
+PubMedQA accuracy depends heavily on which word the model said: **yes 88.0% correct,
+no 60.7%, maybe 17.0%**. So the yes/no/maybe word alone carries a lot of information
+about correctness, which is why Phases 3–4 include the answer-identity control.
+
+### Failure modes of string-match labeling (TriviaQA)
+
+The code flags 101/2,000 TriviaQA labels as worth a second look
+(`flags` field in `results/trivia_qa/labels.jsonl`). Manual inspection found:
+
+1. **False positives from noisy aliases.** TriviaQA's alias lists are built from
+   Wikipedia redirects, and some redirects point to pages covering several things. The
+   alias list for "Dr Pangloss" contains "Candide" and "Cacambo", and the list for
+   "Vitalstatistix" contains "Getafix", so those wrong answers count as correct. Among the
+   35 "correct" answers with zero word overlap with the canonical answer, most are
+   legitimate variants (Two/2, Clothing/Clothes, Jinn/Djinn), and 2 are clearly wrong.
+2. **False positives from containment.** A long answer can contain the right words
+   without being right. Flagged as `long_answer_contains_alias` (17) and
+   `short_or_numeric_alias_match` (5). Most are fine on inspection ("Ursine refers to
+   bears."), but e.g. "George Herbert Walker Bush" counts as correct for gold "Walker".
+3. **False negatives from formatting.** A right answer can fail to match because the
+   gold has extra text, e.g. "Peter Townsend" vs "(Group Captain) Peter Townsend", or
+   "Frankenstein" vs "Frankenstein (Victor)". Also stripping parentheticals from aliases
+   would flip **10/2,000** labels to correct; most flips are genuine fixes, a few are
+   debatable ("Asia" for "South East Asia"). We keep the specified rule unchanged and
+   report this as label noise.
+4. **False negatives from paraphrase or precision.** "8 minutes and 20 seconds" for
+   "About 8 minutes"; "Scott" for "Montgomery Scott". Flagged as
+   `high_overlap_but_no_match` (77) and `answer_is_part_of_alias` (31). Most of these
+   are truly wrong ("Edward II" vs "Edward the First", "Long Island" vs "Staten Island").
+5. **Accents are not folded** (SQuAD normalization keeps "é"). This is harmless here
+   because alias lists usually include both spellings.
+
+**Net effect.** Label noise is small (on the order of 1% of TriviaQA labels from the
+cases above) but not zero. Noise in the target caps the AUROC any detector can reach and
+adds variance; it does not favour any one method.
+
+PubMedQA labels are exact (a closed set of three words), so the only "noise" is
+disagreement with the expert annotators.

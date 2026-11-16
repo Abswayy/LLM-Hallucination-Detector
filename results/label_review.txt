@@ -1,0 +1,66 @@
+trivia_qa: accuracy 0.425 (851/2000), flagged 101
+pubmed_qa: accuracy 0.616 (616/1000), flagged 0
+
+=== trivia_qa: 20 random examples (10 labelled correct, 10 incorrect) ===
+[CORRECT  ] (exact) Q: In Greek mythology which king of Corinth was compelled to eternally roll a large boulder u
+     model: 'Sisyphus' | gold: 'Sisyphus' | aliases: ['Sisyphus', 'Sisophys', 'Sisyphe', 'Sisyphid']
+[CORRECT  ] (exact) Q: Earth belongs to which galaxy?
+     model: 'Milky Way' | gold: 'Milky Way' | aliases: ['Milky Way', 'Milky way', 'Age of the Milky Way', 'Milky Way Galaxy']
+[CORRECT  ] (exact) Q: In relation to phobias what word describes the fear of strangers or foreigners?
+     model: 'Xenophobia' | gold: 'XENOPHOBIA' | aliases: ['XENOPHOBIA', 'Zenophobia', 'Xenophobically', 'Xenophobic']
+[CORRECT  ] (exact) Q: What was the name of the character played by Michael Caine in a total of five films, the f
+     model: 'Harry Palmer' | gold: 'Harry Palmer' | aliases: ['Harry Palmer', 'Palmer, Harry']
+[CORRECT  ] (exact) Q: On today's date in 1908, the first of over 15 million of what automobile was first produce
+     model: 'Ford Model T' | gold: 'Model T Ford' | aliases: ['Model T Ford', 'Model-T', 'Model T', 'Tin Lizzy']
+[CORRECT  ] (exact) Q: What is stevia a substitute for?
+     model: 'sugar' | gold: 'Sugar' | aliases: ['Sugar', 'Sugar lumps', 'Sugar high', 'Health effects of sugar']
+[CORRECT  ] (exact) Q: Which doctor - an eternal optimist – features in Voltaire’s Candide?
+     model: 'Candide' | gold: 'Dr Pangloss' | aliases: ['Dr Pangloss', "L'Optimisme", 'Dr. Pangloss', 'Candide (character)']
+[CORRECT  ] (exact) Q: Who is the author of the Twilight series of best-selling books?
+     model: 'Stephenie Meyer' | gold: 'Stephenie Meyer' | aliases: ['Stephenie Meyer', 'Meyer, Stephenie', 'Stepahnie Meyer', 'Stephinie Meyer']
+[CORRECT  ] (exact) Q: As what are the islands previously known as the Danish West Indies now known?
+     model: 'U.S. Virgin Islands' | gold: 'US Virgin Islands' | aliases: ['US Virgin Islands', 'U.S. Virgin Islander', 'U.S Virgin Islands', 'Education in the United States Virgin Islands']
+[CORRECT  ] (exact) Q: What is the heraldic name for the colour green?
+     model: 'Vert' | gold: 'Vert' | aliases: ['Vert', 'Green (heraldry)', 'Verte', 'Vert (heraldry)']
+[INCORRECT] (none) Q: What hero from Greek mythology was killed by a discus thrown by Apollo, who then named a f
+     model: 'Love-Eater' | gold: 'Hyacinth' | aliases: ['Hyacinth', 'Hyacinthine', 'Hyacinthus (disambiguation)', 'Hyacinth, Saint']
+[INCORRECT] (none) Q: Who in the Old Testament is the father of King David?
+     model: 'Nathan' | gold: 'JESSE' | aliases: ['JESSE', 'Jesse (given name)', 'Yishai', 'Yishay']
+[INCORRECT] (none) Q: Which island has belonged to Carthage, Rome, the Saracens, the King of Aragon, the Dukes o
+     model: 'Sicily' | gold: 'Sardinia' | aliases: ['Sardinia', 'Sardic', 'Sardegna', 'Sardinia (Italy)']
+[INCORRECT] (none) Q: In which TV 'quiz' show was the consolation prize a chequebook and pen?
+     model: 'Countdown' | gold: 'Blankety Blank' | aliases: ['Blankety Blank', 'Blankety Blank (home game)', 'Blankety blank', 'Blankety Blank (board game)']
+[INCORRECT] (none) Q: Where was the first permanent European settlement established in North America?
+     model: 'Jamestown, Virginia' | gold: 'Florida' | aliases: ['Florida', 'Floreda', 'Twenty-Seventh State', 'Sunshine State (US)']
+[INCORRECT] (none) Q: "Which North African food dish made of coarsely ground wheat takes it’s name from the Arab
+     model: 'Farina' | gold: 'COUSCOUS' | aliases: ['COUSCOUS', 'Berkoukes', 'Kuskus', 'Cuz cuz']
+[INCORRECT] (none) Q: In which race did Zola Budd and Mary Decker famously collide at the 1984 Olympics?
+     model: 'Marathon' | gold: '3000 metres' | aliases: ['3000 metres', 'three thousand  distance', '3000 distance']
+[INCORRECT] (none) Q: Who was the driver of the limousine at the time of Diana Princess of Wales' death?
+     model: 'Jonathan Rees' | gold: 'HENRI PAUL' | aliases: ['HENRI PAUL', 'Henri Paul']
+[INCORRECT] (none) Q: Which cricketer wrote the autobiographical 'Coming Back To Me'?
+     model: 'Sachin Tendulkar' | gold: 'MARCUS TRESCOTHICK' | aliases: ['MARCUS TRESCOTHICK', 'ME Trescothick', 'Magnus Trescothick', 'Trescothick']
+[INCORRECT] (none) Q: What is the oldest medical journal in the United States?
+     model: 'The Medical Chronicle' | gold: 'New England Journal of Medicine' | aliases: ['New England Journal of Medicine', 'New Eng J Med', 'Boston Medical & Surgical Journal', 'The New England Journal of Medicine and Surgery']
+
+=== pubmed_qa: 10 random examples (5 labelled correct, 5 incorrect) ===
+[CORRECT  ] (parsed=yes) Q: Is laparoscopic sonography a reliable and sensitive procedure for staging colorectal cance
+     model: 'yes' | gold: 'yes'
+[CORRECT  ] (parsed=yes) Q: Does surgery or radiation therapy impact survival for patients with extrapulmonary small c
+     model: 'yes' | gold: 'yes'
+[CORRECT  ] (parsed=yes) Q: Does radiotherapy around the time of pregnancy for Hodgkin's disease modify the risk of br
+     model: 'yes' | gold: 'yes'
+[CORRECT  ] (parsed=yes) Q: Can serum be used for analyzing the EGFR mutation status in patients with advanced non-sma
+     model: 'yes' | gold: 'yes'
+[CORRECT  ] (parsed=yes) Q: Does Sensation Return to the Nasal Tip After Microfat Grafting?
+     model: 'yes' | gold: 'yes'
+[INCORRECT] (parsed=maybe) Q: Could Adult European Pharmacoresistant Epilepsy Patients Be Treated With Higher Doses of Z
+     model: 'maybe' | gold: 'yes'
+[INCORRECT] (parsed=maybe) Q: Rotator cuff tear--an occupational disease?
+     model: 'maybe' | gold: 'yes'
+[INCORRECT] (parsed=no) Q: Do older patients who refuse to participate in a self-management intervention in the Nethe
+     model: 'no' | gold: 'yes'
+[INCORRECT] (parsed=yes) Q: 30-Day and 1-year mortality in emergency general surgery laparotomies: an area of concern 
+     model: 'yes' | gold: 'maybe'
+[INCORRECT] (parsed=no) Q: Does insulin resistance drive the association between hyperglycemia and cardiovascular ris
+     model: 'no' | gold: 'yes'
