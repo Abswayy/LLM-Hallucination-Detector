@@ -8,7 +8,7 @@ it just gave is wrong. On Qwen2.5 (3B, and a 4-bit 7B replication), across 3,000
 and biomedical questions, it beats semantic entropy, a leading sampling-based method, on accuracy at a
 fraction of the cost. Everything runs on a single 12 GB laptop GPU.
 
-📄 **Paper:** [`paper/main.pdf`](paper/main.pdf) (4 pages) · 🧪 **Every number here is generated from** [`results/metrics.json`](results/metrics.json)
+📄 **Paper:** [Research Report.pdf](Research%20Report.pdf) (4 pages) · 🧪 **Every number here is generated from** [`results/metrics.json`](results/metrics.json)
 
 ---
 
@@ -139,7 +139,7 @@ pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cu126
 pip install -r requirements.txt
 
 HP_CONFIG=config_7b.yaml bash scripts/run_all.sh      # optional: 7B (4-bit) replication -> results_7b/
-bash scripts/run_all.sh                               # 3B pipeline -> results/, figures/, paper/, README.md
+bash scripts/run_all.sh                               # 3B pipeline -> results/, figures/, README.md
 ```
 
 Each step caches its outputs and resumes after a crash. Hardware: RTX 4080 Laptop GPU
@@ -161,8 +161,7 @@ src/timing.py       clean per-stage latency on an idle GPU
 src/evaluate.py     AUROC + bootstrap CIs, abstention curves, cost accounting
 src/plots.py        figures (PDF + PNG)
 src/report.py       paper numbers/tables and this README, generated from metrics.json
-NOTES.md            plain-English explanation of every step and design decision
-paper/main.tex      4-page workshop-style write-up (compiled: paper/main.pdf)
+Research Report.pdf 4-page workshop-style write-up of the study
 ```
 </details>
 
@@ -174,7 +173,7 @@ matching: noisy TriviaQA aliases cause some false positives, and formatting diff
 some false negatives. PubMedQA test splits are small (150 questions), so its CIs are
 wide. The PubMedQA prompt was adjusted once, using only the answer distribution on
 100 questions, before any correctness labels existed. The 7B model is 4-bit
-quantized. Details: [`NOTES.md`](NOTES.md) and the paper's Limitations section.
+quantized. Details: the Limitations section of [Research Report.pdf](Research%20Report.pdf).
 
 ## Built with
 
